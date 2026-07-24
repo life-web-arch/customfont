@@ -58,7 +58,7 @@ export default function App() {
 
       <footer className="app-footer">
         <span>Custom Font Studio — MIT License</span>
-        <a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="https://github.com/life-web-arch/customfont" target="_blank" rel="noreferrer">GitHub</a>
       </footer>
     </div>
   );
