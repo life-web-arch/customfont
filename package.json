@@ -1,0 +1,21 @@
+{
+  "name": "customfont",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "esm-potrace-wasm": "^0.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "svg2ttf": "^6.0.3",
+    "svgpath": "^2.6.0",
+    "ttf2woff": "^3.0.0",
+    "wawoff2": "^2.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  }
+}
