@@ -71,7 +71,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
   const usedChars = new Set(Object.values(mappings));
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 320px', gap: 20, alignItems: 'start' }}>
+    <div className="mapping-layout">
       {/* Left: Glyph Grid */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
@@ -107,18 +107,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
                 key={i}
                 onClick={() => setSelected(isSel ? null : i)}
                 title={ch ? `Mapped to: ${ch}` : 'Not mapped — click to select'}
-                style={{
-                  border: `2px solid ${isSel ? 'var(--accent)' : ch ? 'rgba(74,222,128,0.4)' : 'var(--border)'}`,
-                  borderRadius: 10,
-                  background: isSel ? 'rgba(224,201,127,0.08)' : 'var(--surface)',
-                  cursor: 'pointer',
-                  overflow: 'hidden',
-                  position: 'relative',
-                  transition: 'border-color .15s',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                }}
+                className={`glyph-card${isSel ? ' is-selected' : ''}${ch ? ' is-mapped' : ''}`}
               >
                 <img src={g.thumbUrl} alt={`Glyph ${i}`} style={{ width: '100%', imageRendering: 'pixelated', display: 'block', background: '#fff' }} />
                 <div style={{
@@ -155,7 +144,8 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
           <button
             onClick={onDone}
             disabled={mapped === 0}
-            style={{ padding: '10px 28px', background: 'var(--accent)', color: '#1a1a2e', borderRadius: 8, fontWeight: 700 }}
+            className="btn-primary"
+            style={{ padding: '10px 28px', fontSize: '0.95rem' }}
           >
             Export Font →
           </button>
@@ -166,7 +156,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
       </div>
 
       {/* Right: Character Picker */}
-      <div style={{ position: 'sticky', top: 72, background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', padding: 16 }}>
+      <div className="card mapping-sidebar">
         <h3 style={{ marginBottom: 12, fontSize: '1rem' }}>
           {selected !== null ? `Assign to Glyph #${selected+1}` : 'Select a glyph first'}
         </h3>
@@ -179,7 +169,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
             {CHAR_GROUPS.map((g,i) => (
               <button key={g.label} onClick={() => setActiveGroup(i)}
-                style={{ padding: '3px 8px', borderRadius: 5, background: activeGroup===i ? 'var(--accent2)' : 'var(--surface2)', color: activeGroup===i ? '#fff' : 'var(--muted)', fontSize: '0.75rem', border: '1px solid var(--border)' }}>
+                className={`group-tab${activeGroup===i ? ' is-active' : ''}`}>
                 {g.label}
               </button>
             ))}
@@ -197,17 +187,8 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
                 onClick={() => { if (selected !== null) assign(selected, c); }}
                 disabled={selected === null}
                 title={`U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')} — ${used && !isCurrent ? 'already mapped' : ''}`}
-                style={{
-                  width: 36, height: 36,
-                  borderRadius: 6,
-                  border: `1px solid ${isCurrent ? 'var(--accent)' : used && !isCurrent ? 'rgba(248,113,113,0.3)' : 'var(--border)'}`,
-                  background: isCurrent ? 'var(--accent)' : used && !isCurrent ? 'rgba(248,113,113,0.08)' : 'var(--surface2)',
-                  color: isCurrent ? '#1a1a2e' : used && !isCurrent ? 'var(--danger)' : 'var(--text)',
-                  fontSize: '1rem',
-                  lineHeight: 1,
-                  cursor: selected === null ? 'default' : 'pointer',
-                  fontWeight: isCurrent ? 700 : 400,
-                }}
+                className={`char-btn${isCurrent ? ' is-current' : ''}${used && !isCurrent ? ' is-used' : ''}`}
+                style={{ cursor: selected === null ? 'default' : 'pointer' }}
               >{c}</button>
             );
           })}
