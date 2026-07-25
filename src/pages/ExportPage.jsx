@@ -4,6 +4,19 @@ import svgpath from 'svgpath';
 import { placeGlyph, applyItalic, band } from '../lib/metrics.js';
 import { buildTTF, fontFaceCSS } from '../lib/assemble.js';
 
+// SVG icons
+const IcoDownload = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+const IcoTrash    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
+const IcoCheck    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
+const IcoCopy     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>;
+const IcoFile     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>;
+const IcoZap      = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
+const IcoBot      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="16" y1="15" x2="16" y2="15"/></svg>;
+const IcoRuler    = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l4-4 4 4 4-4 4 4"/><line x1="3" y1="12" x2="21" y2="12"/></svg>;
+const IcoEye      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
+const IcoShield   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const IcoChevron  = ({ open }) => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition:'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }}><polyline points="6 9 12 15 18 9"/></svg>;
+
 const PAD = 10;
 const LS_KEY = 'cfs_font_history';
 
@@ -84,6 +97,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const [copiedCSS, setCopiedCSS]           = useState(false);
   const [copiedPrompt, setCopiedPrompt]     = useState(false);
   const [showPrompt, setShowPrompt]         = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const fontFaceRef    = useRef({});
   const fontSeqRef     = useRef(0);
   const resultsRef      = useRef(null);
@@ -142,7 +156,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         fontFaceRef.current[vId] = fName;
       }
       setResults(out);
-      setStatus('✅ Done! Your font is ready.');
+      setStatus('done: Your font is ready.');
       const entry = {
         id: Date.now(),
         name: fontName,
@@ -155,7 +169,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         )
       };
       saveHistory([...loadHistory(), entry]);
-    } catch(e) { setStatus('❌ Error: '+e.message); }
+    } catch(e) { setStatus('err: '+e.message); }
     setBusy(false);
     setTimeout(() => {
       if (resultsRef.current) {
@@ -182,17 +196,16 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
     try {
       const buf=await file.arrayBuffer(); const fName=`cfimport-${Date.now()}`;
       const face=new FontFace(fName,buf); await face.load(); document.fonts.add(face);
-      setImportedFamily(fName); setImportStatus(`✅ Loaded "${file.name}" — type below to preview`);
-    } catch(e) { setImportStatus('❌ Failed: '+e.message); }
+      setImportedFamily(fName); setImportStatus(`ok: Loaded "${file.name}" — type below to preview`);
+    } catch(e) { setImportStatus('err: '+e.message); }
   }
   // deleteEntry moved to HistoryPage
 
   function clearSession() {
-    if (!window.confirm('Clear all font data (history, glyphs cache) from localStorage? This frees storage space.')) return;
     localStorage.removeItem(LS_KEY);
-    // history state removed from ExportPage
     setResults({});
-    setStatus('🗑️ Session data cleared from localStorage.');
+    setStatus('done: Export data cleared.');
+    setShowClearConfirm(false);
   }
 
   const hasResults = Object.keys(results).length > 0;
@@ -296,7 +309,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         <div style={S.card}>
           <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Output Format</h3>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <span style={{ fontSize:'1.1rem' }}>✅</span>
+            <span style={{ color:'var(--success)', display:'flex' }}><IcoCheck /></span>
             <span style={{ fontWeight:600 }}>TTF</span>
             <span style={{ color:'var(--muted)', fontSize:'0.82rem' }}>TrueType — works on Windows, Mac, Linux, Android, iOS & all browsers</span>
           </div>
@@ -308,23 +321,23 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         <button onClick={generate}
           disabled={busy||selectedVariants.length===0||mappedEntries.length===0}
           className="btn-primary" style={{ padding:'12px 32px', fontSize:'1rem' }}>
-          {busy ? <><span className="spinner" /> Building…</> : '⚡ Generate Fonts'}
+          {busy ? <><span className="spinner" style={{marginRight:6}} /> Building…</> : <><IcoZap /><span style={{marginLeft:6}}>Generate Fonts</span></>}
         </button>
         {mappedEntries.length===0 && <span style={{ color:'var(--muted)', fontSize:'0.85rem' }}>Map some glyphs first</span>}
       </div>
 
       {status && (
         <div style={{ marginBottom:20, padding:'10px 16px', borderRadius:8,
-          background: status.startsWith('✅')?'rgba(74,222,128,0.08)':status.startsWith('❌')?'rgba(248,113,113,0.08)':'var(--surface)',
-          border:`1px solid ${status.startsWith('✅')?'var(--success)':status.startsWith('❌')?'var(--danger)':'var(--border)'}`,
-          color: status.startsWith('✅')?'var(--success)':status.startsWith('❌')?'var(--danger)':'var(--text)', fontSize:'0.9rem' }}>
-          {status}
+          background: status.startsWith('done')?'rgba(74,222,128,0.08)':status.startsWith('err')?'rgba(248,113,113,0.08)':'var(--surface)',
+          border:`1px solid ${status.startsWith('done')?'var(--success)':status.startsWith('err')?'var(--danger)':'var(--border)'}`,
+          color: status.startsWith('done')?'var(--success)':status.startsWith('err')?'var(--danger)':'var(--text)', fontSize:'0.9rem' }}>
+          {status.replace(/^(done|err): ?/, '')}
         </div>
       )}
 
       {/* Metrics & Spacing — moved after Generate */}
       <div style={{ ...S.card, marginTop:20 }}>
-        <h3 style={{ fontSize:'0.95rem', marginBottom:14 }}>📐 Metrics & Spacing</h3>
+        <h3 style={{ fontSize:'0.95rem', marginBottom:14, display:'flex', alignItems:'center', gap:7 }}><IcoRuler /> Metrics &amp; Spacing</h3>
         {sliders.map(({label,val,set,min,max})=>(
           <div key={label} style={{ marginBottom:14 }}>
             <span style={S.label}>{label}</span>
@@ -358,7 +371,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           <div style={{ marginBottom:12 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:10 }}>
               <div>
-                <h3 style={{ fontSize:'1rem', marginBottom:2 }}>✍ Live Font Preview</h3>
+                <h3 style={{ fontSize:'1rem', marginBottom:2, display:'flex', alignItems:'center', gap:7 }}><IcoEye /> Live Font Preview</h3>
                 <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Type anything — rendered in your generated font in real time</p>
               </div>
               <label style={{ display:'flex', gap:8, alignItems:'center', color:'var(--muted)', fontSize:'0.82rem' }}>
@@ -384,13 +397,13 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14, flexWrap:'wrap', gap:8 }}>
             <h3>Download Files</h3>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-              <button onClick={downloadAll} style={{ padding:'8px 18px', background:'var(--accent2)', color:'#fff', borderRadius:7, fontWeight:600 }}>
-                ⬇ Download All
+              <button onClick={downloadAll} style={{ padding:'8px 18px', background:'var(--accent2)', color:'#fff', borderRadius:7, fontWeight:600, display:'flex', alignItems:'center', gap:6 }}>
+                <IcoDownload /> Download All
               </button>
-              <button onClick={clearSession}
+              <button onClick={() => setShowClearConfirm(true)}
                 title="Free up localStorage space used by this session"
-                style={{ padding:'8px 14px', background:'rgba(248,113,113,0.10)', border:'1px solid rgba(248,113,113,0.3)', borderRadius:7, color:'var(--danger)', fontSize:'0.84rem' }}>
-                🗑️ Clear Data
+                style={{ padding:'8px 14px', background:'rgba(248,113,113,0.10)', border:'1px solid rgba(248,113,113,0.3)', borderRadius:7, color:'var(--danger)', fontSize:'0.84rem', display:'flex', alignItems:'center', gap:6 }}>
+                <IcoTrash /> Clear Data
               </button>
             </div>
           </div>
@@ -403,14 +416,14 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
                   <div style={{ marginBottom:8, fontWeight:v.weight==='bold'?700:400, fontStyle:v.style }}>{v.label}</div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                     {files.ttf && <button onClick={()=>download(files.ttf, `${base}${suf}.ttf`, 'font/ttf')}
-                      style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>⬇ TTF</button>}
+                      style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem', display:'flex', alignItems:'center', gap:5 }}><IcoDownload /> TTF</button>}
                   </div>
                 </div>
               );
             })}
           </div>
           <div style={{ marginTop:16, padding:'10px 14px', background:'rgba(127,156,245,0.07)', border:'1px solid rgba(127,156,245,0.2)', borderRadius:8, fontSize:'0.8rem', color:'var(--muted)', lineHeight:1.6 }}>
-            <strong style={{ color:'var(--accent2)' }}>💾 Storage & Privacy</strong><br/>
+            <strong style={{ color:'var(--accent2)', display:'inline-flex', alignItems:'center', gap:6 }}><IcoShield /> Storage &amp; Privacy</strong><br/>
             Generated fonts are saved to <strong>browser localStorage on this device only</strong> — never uploaded to any server.
             Clearing site data or using Private/Incognito mode will erase them permanently.
             <strong style={{ color:'var(--accent)' }}> Download your fonts now to keep them safe.</strong>{' '}
@@ -436,7 +449,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           <pre style={{ fontFamily:'var(--font-mono)', fontSize:'0.78rem', background:'var(--surface2)', padding:14, borderRadius:8, overflowX:'auto', lineHeight:1.6, color:'var(--text)', whiteSpace:'pre-wrap' }}>{cssSnippet}</pre>
           <button onClick={()=>{navigator.clipboard.writeText(cssSnippet);setCopiedCSS(true);setTimeout(()=>setCopiedCSS(false),2000);}}
             style={{ marginTop:8, padding:'6px 14px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.84rem' }}>
-            {copiedCSS?'✅ Copied!':'📋 Copy CSS'}
+            <>{copiedCSS ? <><IcoCheck /><span style={{marginLeft:5}}>Copied!</span></> : <><IcoCopy /><span style={{marginLeft:5}}>Copy CSS</span></>}</>
           </button>
         </div>
       )}
@@ -447,7 +460,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         <div style={{ ...S.card }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, flexWrap:'wrap', gap:8 }}>
             <div>
-              <h3 style={{ fontSize:'1rem', marginBottom:2 }}>🤖 Vibe Coding Prompt</h3>
+              <h3 style={{ fontSize:'1rem', marginBottom:2, display:'flex', alignItems:'center', gap:7 }}><IcoBot /> Vibe Coding Prompt</h3>
               <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Copy this prompt and paste it to Claude, Gemini, ChatGPT or any AI coding agent, to implement your custom font <strong style={{color:'var(--accent)'}}>{fontName || 'MyFont'}</strong> in your website</p>
             </div>
             <button onClick={()=>setShowPrompt(p=>!p)}
@@ -460,7 +473,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
               <pre style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem', background:'var(--surface2)', padding:14, borderRadius:8, overflowX:'auto', lineHeight:1.6, color:'var(--text)', whiteSpace:'pre-wrap', maxHeight:320, overflowY:'auto' }}>{vibePrompt}</pre>
               <button onClick={()=>{ navigator.clipboard.writeText(vibePrompt); setCopiedPrompt(true); setTimeout(()=>setCopiedPrompt(false),2000); }}
                 style={{ marginTop:8, padding:'6px 16px', background: copiedPrompt ? 'var(--success)' : 'var(--accent2)', color:'#fff', borderRadius:6, fontSize:'0.84rem', fontWeight:600, cursor:'pointer' }}>
-                {copiedPrompt ? '✅ Copied!' : '📋 Copy Prompt'}
+                <>{copiedPrompt ? <><IcoCheck /><span style={{marginLeft:5}}>Copied!</span></> : <><IcoCopy /><span style={{marginLeft:5}}>Copy Prompt</span></>}</>
               </button>
             </>
           )}
@@ -475,15 +488,42 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         </p>
         <label style={{ display:'inline-flex', alignItems:'center', gap:10, cursor:'pointer',
           padding:'8px 16px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8, fontSize:'0.86rem' }}>
-          📂 Choose font file
+          <IcoFile /> Choose font file
           <input type="file" accept=".ttf,.woff,.woff2,font/ttf,font/woff,font/woff2" hidden onChange={e=>handleImportFont(e.target.files[0])} />
         </label>
-        {importStatus && <p style={{ marginTop:10, fontSize:'0.85rem', color:importStatus.startsWith('✅')?'var(--success)':importStatus.startsWith('❌')?'var(--danger)':'var(--muted)' }}>{importStatus}</p>}
+        {importStatus && <p style={{ marginTop:10, fontSize:'0.85rem', color:importStatus.startsWith('ok')?'var(--success)':importStatus.startsWith('err')?'var(--danger)':'var(--muted)' }}>{importStatus}</p>}
         {importedFamily && (
           <textarea defaultValue="Type here to preview the imported font…"
             style={{ marginTop:14, fontFamily:`${importedFamily}, serif`, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:100, background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:12, resize:'vertical' }} />
         )}
       </div>
     </div>
+
+      {showClearConfirm && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)',
+          display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => setShowClearConfirm(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:'var(--surface)', border:'1px solid var(--border)',
+            borderRadius:'var(--radius)', padding:'28px 24px',
+            maxWidth:360, width:'100%', boxShadow:'var(--shadow-md)',
+            animation:'fadeInUp .2s var(--ease) both' }}>
+            <h3 style={{ marginBottom:10, fontSize:'1.05rem', display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ color:'var(--danger)' }}><IcoTrash /></span> Clear Export Data?
+            </h3>
+            <p style={{ color:'var(--muted)', fontSize:'0.88rem', lineHeight:1.6, marginBottom:20 }}>
+              This frees localStorage space from the current export session. Your font history is not affected.
+            </p>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setShowClearConfirm(false)}
+                style={{ padding:'8px 18px', background:'var(--surface2)', border:'1px solid var(--border)',
+                  borderRadius:7, color:'var(--text)', fontSize:'0.88rem' }}>Cancel</button>
+              <button onClick={clearSession}
+                style={{ padding:'8px 18px', background:'var(--danger)',
+                  borderRadius:7, color:'#fff', fontWeight:700, fontSize:'0.88rem' }}>Yes, Clear</button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }

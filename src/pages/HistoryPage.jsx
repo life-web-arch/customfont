@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 
+const IcoDownload = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+const IcoTrash    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
+const IcoX        = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+const IcoClock    = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IcoChevron  = ({ open }) => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition:'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }}><polyline points="6 9 12 15 18 9"/></svg>;
+const IcoWarn     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+
 const LS_KEY = 'cfs_font_history';
 
 function loadHistory() {
@@ -38,6 +45,7 @@ export default function HistoryPage() {
   const [history, setHistory] = useState(loadHistory);
   const [status, setStatus] = useState('');
   const [expanded, setExpanded] = useState(null); // entry id
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   function deleteEntry(id) {
     const updated = history.filter(e => e.id !== id);
@@ -46,11 +54,11 @@ export default function HistoryPage() {
   }
 
   function clearAll() {
-    if (!window.confirm('Clear all font history from localStorage? This cannot be undone.')) return;
     localStorage.removeItem(LS_KEY);
     setHistory([]);
     setExpanded(null);
-    setStatus('🗑️ All history cleared.');
+    setShowClearConfirm(false);
+    setStatus('All history cleared.');
   }
 
   function downloadFmt(entry, vId, fmt) {
@@ -87,15 +95,15 @@ export default function HistoryPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 8 }}>
         <div>
-          <h2 style={{ fontSize: '1.4rem', marginBottom: 4 }}>🕓 Font History</h2>
+          <h2 style={{ fontSize: '1.4rem', marginBottom: 4, display:'flex', alignItems:'center', gap:8 }}><IcoClock /> Font History</h2>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
             {history.length} saved font{history.length !== 1 ? 's' : ''} — stored in browser localStorage on this device only.
           </p>
         </div>
         {history.length > 0 && (
-          <button onClick={clearAll}
-            style={{ padding: '7px 14px', background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, color: 'var(--danger)', fontSize: '0.85rem' }}>
-            🗑️ Clear All
+          <button onClick={() => setShowClearConfirm(true)}
+            style={{ padding: '7px 14px', background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, color: 'var(--danger)', fontSize: '0.85rem', display:'flex', alignItems:'center', gap:6 }}>
+            <IcoTrash /> Clear All
           </button>
         )}
       </div>
@@ -136,15 +144,15 @@ export default function HistoryPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                     <button onClick={e => { e.stopPropagation(); downloadAll(entry); }}
-                      style={{ padding: '6px 12px', background: 'var(--accent2)', color: '#fff', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}
+                      style={{ padding: '6px 12px', background: 'var(--accent2)', color: '#fff', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600, display:'flex', alignItems:'center', gap:5 }}
                       title="Download all variants & formats">
-                      ⬇ All
+                      <IcoDownload /> All
                     </button>
                     <button onClick={e => { e.stopPropagation(); deleteEntry(entry.id); }}
-                      style={{ padding: '6px 10px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 6, color: 'var(--danger)', fontSize: '0.82rem' }}>
-                      ✕
+                      style={{ padding: '6px 10px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 6, color: 'var(--danger)', fontSize: '0.82rem', display:'flex', alignItems:'center' }}>
+                      <IcoX />
                     </button>
-                    <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>{isOpen ? '▲' : '▼'}</span>
+                    <span style={{ color: 'var(--muted)' }}><IcoChevron open={isOpen} /></span>
                   </div>
                 </div>
 
@@ -177,10 +185,37 @@ export default function HistoryPage() {
           })}
 
           <p style={{ marginTop: 14, fontSize: '0.78rem', color: 'var(--muted)', lineHeight: 1.6 }}>
-            ⚠ History is stored in browser localStorage on this device only. Max 10 entries kept. Clearing site data will erase all history permanently.
+            <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}><IcoWarn /> History is stored in browser localStorage on this device only. Max 10 entries kept. Clearing site data will erase all history permanently.</span>
           </p>
         </div>
       )}
     </div>
+
+      {showClearConfirm && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)',
+          display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => setShowClearConfirm(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:'var(--surface)', border:'1px solid var(--border)',
+            borderRadius:'var(--radius)', padding:'28px 24px',
+            maxWidth:360, width:'100%', boxShadow:'var(--shadow-md)',
+            animation:'fadeInUp .2s var(--ease) both' }}>
+            <h3 style={{ marginBottom:10, fontSize:'1.05rem', display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ color:'var(--danger)' }}><IcoTrash /></span> Clear All History?
+            </h3>
+            <p style={{ color:'var(--muted)', fontSize:'0.88rem', lineHeight:1.6, marginBottom:20 }}>
+              This permanently removes all saved fonts from browser storage. This cannot be undone.
+            </p>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setShowClearConfirm(false)}
+                style={{ padding:'8px 18px', background:'var(--surface2)', border:'1px solid var(--border)',
+                  borderRadius:7, color:'var(--text)', fontSize:'0.88rem' }}>Cancel</button>
+              <button onClick={clearAll}
+                style={{ padding:'8px 18px', background:'var(--danger)',
+                  borderRadius:7, color:'#fff', fontWeight:700, fontSize:'0.88rem' }}>Yes, Clear All</button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }

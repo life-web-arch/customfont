@@ -1,5 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
+// SVG icons
+const IcoTrash = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>;
+
 // All character groups for the picker
 const CHAR_GROUPS = [
   { label: 'Uppercase', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
@@ -29,6 +32,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
   const [search, setSearch] = useState('');
   const [customChar, setCustomChar] = useState('');
   const [zoom, setZoom] = useState(40);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 720);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 720);
@@ -65,7 +69,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
     });
   }, [glyphs, setMappings]);
 
-  const clearAll = () => { if (confirm('Clear all mappings?')) setMappings({}); };
+  const clearAll = () => setShowClearConfirm(true);
 
   const filteredChars = search
     ? CHAR_GROUPS.flatMap(g => [...g.chars]).filter(c => {
@@ -238,5 +242,33 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
         </div>
       </div>
     </div>
+
+      {/* Custom confirm modal */}
+      {showClearConfirm && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.6)',
+          display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => setShowClearConfirm(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:'var(--surface)', border:'1px solid var(--border)',
+            borderRadius:'var(--radius)', padding:'28px 24px',
+            maxWidth:360, width:'100%', boxShadow:'var(--shadow-md)',
+            animation:'fadeInUp .2s var(--ease) both' }}>
+            <h3 style={{ marginBottom:10, fontSize:'1.05rem', display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ color:'var(--danger)' }}><IcoTrash /></span> Clear All Mappings?
+            </h3>
+            <p style={{ color:'var(--muted)', fontSize:'0.88rem', lineHeight:1.6, marginBottom:20 }}>
+              This will remove all character assignments. Glyph images are kept.
+            </p>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={() => setShowClearConfirm(false)}
+                style={{ padding:'8px 18px', background:'var(--surface2)', border:'1px solid var(--border)',
+                  borderRadius:7, color:'var(--text)', fontSize:'0.88rem' }}>Cancel</button>
+              <button onClick={() => { setMappings({}); setShowClearConfirm(false); }}
+                style={{ padding:'8px 18px', background:'var(--danger)',
+                  borderRadius:7, color:'#fff', fontWeight:700, fontSize:'0.88rem' }}>Yes, Clear All</button>
+            </div>
+          </div>
+        </div>
+      )}
   );
 }
