@@ -13,6 +13,16 @@ export default function App() {
   const [mappings, setMappings] = useState({}); // { index -> char }
   const [fontName, setFontName] = useState('');
   const fontNameInputRef = useRef(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  function clearSession() {
+    setGlyphs([]);
+    setMappings({});
+    setFontName('');
+    setTab(0);
+    setShowClearConfirm(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   const canMap = glyphs.length > 0;
   const canExport = canMap && Object.keys(mappings).length > 0;
@@ -39,6 +49,25 @@ export default function App() {
             ))}
           </nav>
 
+          {/* Clear session button — only shown when there's something to clear */}
+          {canMap && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              title="Clear uploaded file and start over"
+              style={{
+                padding: '6px 11px',
+                background: 'rgba(248,113,113,0.10)',
+                border: '1px solid rgba(248,113,113,0.35)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--danger)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >🗑 Clear</button>
+          )}
+
           <input
             ref={fontNameInputRef}
             type="text"
@@ -59,6 +88,42 @@ export default function App() {
         {tab === 3 && <HistoryPage />}
         {tab === 4 && <HelpPage />}
       </main>
+
+      {/* Clear confirmation modal */}
+      {showClearConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 20,
+        }} onClick={() => setShowClearConfirm(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '28px 24px',
+            maxWidth: 360,
+            width: '100%',
+            boxShadow: 'var(--shadow-md)',
+          }}>
+            <h3 style={{ marginBottom: 10, fontSize: '1.05rem' }}>🗑 Clear Session?</h3>
+            <p style={{ color: 'var(--muted)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: 20 }}>
+              This will remove the uploaded image, all detected glyphs, mappings, and the font name — returning you to the Upload screen.<br /><br />
+              <strong style={{ color: 'var(--text)' }}>Your font history is kept safe.</strong>
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                style={{ padding: '8px 18px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: '0.88rem' }}
+              >Cancel</button>
+              <button
+                onClick={clearSession}
+                style={{ padding: '8px 18px', background: 'var(--danger)', borderRadius: 7, color: '#fff', fontWeight: 700, fontSize: '0.88rem' }}
+              >Yes, Clear</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="app-footer">
         <span>Made with 💙 by BM</span>
