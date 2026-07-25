@@ -5,8 +5,9 @@ import MappingPage from './pages/MappingPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import HelpPage from './pages/HelpPage.jsx';
 import HistoryPage from './pages/HistoryPage.jsx';
+import AlignPage from './pages/AlignPage.jsx';
 
-const TABS = ['Upload', 'Map Glyphs', 'Export', 'History', 'Help & Docs'];
+const TABS = ['Upload', 'Map Glyphs', 'Align', 'Export', 'History', 'Help & Docs'];
 const SESSION_KEY = 'cfs_session';
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ export default function App() {
   const [tab, setTab]           = useState(0);
   const [glyphs, setGlyphs]     = useState([]);
   const [mappings, setMappings] = useState({});
+  const [glyphOverrides, setGlyphOverrides] = useState({});
   const [fontName, setFontName] = useState('');
   const [preview, setPreview]   = useState(null);   // upload preview dataURL
   const [sourceUrl, setSourceUrl] = useState(null);  // original image URL for re-cropping
@@ -176,7 +178,8 @@ export default function App() {
 
 
   const canMap    = glyphs.length > 0;
-  const canExport = canMap && Object.keys(mappings).length > 0;
+  const canAlign  = canMap && Object.keys(mappings).length > 0;
+  const canExport = canAlign;
 
   // Don't render until session is hydrated to avoid flash
   if (!hydrated) return (
@@ -206,10 +209,11 @@ export default function App() {
                 className={`app-tab${tab === i ? ' is-active' : ''}`}
                 onClick={() => {
                   if (i === 1 && !canMap) return;
-                  if (i === 2 && !canExport) return;
+                  if (i === 2 && !canAlign) return;
+                  if (i === 3 && !canExport) return;
                   setTab(i);
                 }}
-                disabled={(i === 1 && !canMap) || (i === 2 && !canExport)}
+                disabled={(i === 1 && !canMap) || (i === 2 && !canAlign) || (i === 3 && !canExport)}
               >{t}</button>
             ))}
           </nav>
@@ -241,10 +245,11 @@ export default function App() {
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings}
           sourceUrl={sourceUrl} setGlyphs={setGlyphs}
           onDone={() => { setTab(2); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
-        {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName}
-          setFontName={setFontName} fontNameInputRef={fontNameInputRef} />}
-        {tab === 3 && <HistoryPage />}
-        {tab === 4 && <HelpPage />}
+        {tab === 2 && <AlignPage glyphs={glyphs} mappings={mappings} glyphOverrides={glyphOverrides} setGlyphOverrides={setGlyphOverrides} onNext={() => { setTab(3); window.scrollTo({ top:0, behavior:'smooth' }); }} />
+        {tab === 3 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName}
+          setFontName={setFontName} fontNameInputRef={fontNameInputRef} glyphOverrides={glyphOverrides} />}
+        {tab === 4 && <HistoryPage />}
+        {tab === 5 && <HelpPage />}
       </main>
 
       <footer className="app-footer">

@@ -84,7 +84,7 @@ const VARIANTS = [
 ];
 // FORMATS removed — TTF only
 
-export default function ExportPage({ glyphs, mappings, fontName, setFontName, fontNameInputRef }) {
+export default function ExportPage({ glyphs, mappings, fontName, setFontName, fontNameInputRef, glyphOverrides = {} }) {
   const _p = loadPrefs();
   const [busy, setBusy]                     = useState(false);
   const [genProgress, setGenProgress]       = useState({ current: 0, total: 0 });
@@ -159,7 +159,11 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       const d = await traceImageData(imgData);
       if (!d) continue;
       g._cachedPath = d; // keep for canvas compat
-      let placed = placeGlyph(d, { width: g.canvas.width, height: g.canvas.height }, PAD, char, { lsb, rsb });
+      const _ovr = glyphOverrides[+idxStr] || {};
+      const _scaleX = _ovr.scaleX ?? 1;
+      const _scaleY = _ovr.scaleY ?? 1;
+      const _offsetY = _ovr.offsetY ?? 0;
+      let placed = placeGlyph(d, { width: g.canvas.width / _scaleX, height: g.canvas.height / _scaleY }, PAD / Math.max(_scaleX, _scaleY), char, { lsb, rsb });
       if (variant.italicDeg) placed = { ...placed, d: applyItalic(placed.d, variant.italicDeg) };
       builtGlyphs.push({ char, ...placed });
       if (onProgress) onProgress(ei + 1, total);
