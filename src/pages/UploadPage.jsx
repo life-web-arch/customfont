@@ -6,7 +6,7 @@ const IcoCamera  = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="n
 const IcoChevron = ({ open }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition:'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }}><polyline points="6 9 12 15 18 9"/></svg>;
 const IcoCheck   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
-export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs }) {
+export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStartFresh }) {
   const [dragOver, setDragOver] = useState(false);
   const [status, setStatus]     = useState('');
   const [busy, setBusy]         = useState(false);
@@ -206,7 +206,13 @@ export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs }) {
                   Appends new glyphs to existing ones. Keeps all current mappings.
                 </div>
               </button>
-              <button onClick={()=>{ setShowModeModal(false); processFile(pendingFile,'fresh'); setPendingFile(null); }}
+              <button onClick={()=>{
+                  setShowModeModal(false);
+                  onStartFresh?.();          // clear cfs_session (glyphs/mappings/fontName/preview) first
+                  setPreview(null);           // clear local preview state too, then processFile repopulates it
+                  processFile(pendingFile,'fresh');
+                  setPendingFile(null);
+                }}
                 style={{ padding:'12px 16px', background:'rgba(248,113,113,0.10)',
                   border:'1px solid var(--danger)', borderRadius:8,
                   color:'var(--danger)', fontWeight:700, fontSize:'0.92rem', textAlign:'left' }}>

@@ -131,6 +131,14 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // Used by the Upload page's "Start fresh" choice: wipes current working
+  // session (glyphs, mappings, font name, preview, cfs_session in localStorage)
+  // BEFORE the new image is processed. Does not touch cfs_font_history.
+  function resetForFreshUpload() {
+    setGlyphs([]); setMappings({}); setFontName(''); setPreview(null);
+    localStorage.removeItem(SESSION_KEY);
+  }
+
   const canMap    = glyphs.length > 0;
   const canExport = canMap && Object.keys(mappings).length > 0;
 
@@ -192,6 +200,7 @@ export default function App() {
         {tab === 0 && <UploadPage
           initialPreview={preview}
           hasGlyphs={glyphs.length > 0}
+          onStartFresh={resetForFreshUpload}
           onGlyphs={(g, dataUrl, chars=[], mode='fresh') => {
             if (mode === 'append') {
               setGlyphs(prev => {
