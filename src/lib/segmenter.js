@@ -108,20 +108,36 @@ export async function segmentFromImageData(imgData, { delta=40 }={}) {
 // Returns { canvas, imageData, thumbUrl } with pure black-on-white output.
 export function recropFromImageData(fullImgData, x0, y0, x1, y1, delta=40) {
   const { width, height } = fullImgData;
-  const ink = binarize(fullImgData, delta);
   const cx0 = Math.max(0, x0), cy0 = Math.max(0, y0);
   const cx1 = Math.min(width-1, x1), cy1 = Math.min(height-1, y1);
   const w = cx1 - cx0 + 1, h = cy1 - cy0 + 1;
+
+  // Extract just the cropped region into its own ImageData,
+  // then binarize that patch alone — so localBg only sees the
+  // local paper/ink context, not the whole image.
+  const patch = new ImageData(w, h);
+  for (let row = 0; row < h; row++) {
+    for (let col = 0; col < w; col++) {
+      const sp = ((cy0 + row) * width + (cx0 + col)) * 4;
+      const dp = (row * w + col) * 4;
+      patch.data[dp]   = fullImgData.data[sp];
+      patch.data[dp+1] = fullImgData.data[sp+1];
+      patch.data[dp+2] = fullImgData.data[sp+2];
+      patch.data[dp+3] = fullImgData.data[sp+3];
+    }
+  }
+
+  // Binarize just the patch — localBg now sees only this region
+  const ink = binarize(patch, delta);
+
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d');
   const imd = ctx.createImageData(w, h);
   imd.data.fill(255);
-  for (let row = 0; row < h; row++) {
-    for (let col = 0; col < w; col++) {
-      if (ink[(cy0 + row) * width + (cx0 + col)]) {
-        const p = (row * w + col) * 4;
-        imd.data[p] = imd.data[p+1] = imd.data[p+2] = 0; imd.data[p+3] = 255;
-      }
+  for (let i = 0; i < ink.length; i++) {
+    if (ink[i]) {
+      const p = i * 4;
+      imd.data[p] = imd.data[p+1] = imd.data[p+2] = 0; imd.data[p+3] = 255;
     }
   }
   ctx.putImageData(imd, 0, 0);
