@@ -333,14 +333,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
     return () => clearTimeout(debounceRef.current);
   }, [wordSpace, lsb, rsb]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-size preview textarea on mount/remount and when font size changes
-  useEffect(() => {
-    const el = previewRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
-  }, [previewKey, previewSize]);
-
   // Persist prefs on every relevant state change
   useEffect(() => {
     savePrefs({ selectedVariants, previewText, previewSize, previewVariant, wordSpace, lsb, rsb });
