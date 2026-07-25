@@ -6,6 +6,28 @@ import { UPM, ASCENT, DESCENT, XH, CAP } from './metrics.js';
 const esc = ch => '&#x' + ch.codePointAt(0).toString(16).toUpperCase() + ';';
 const escAttr = s => s.replace(/[&<>"']/g, c => `&#x${c.codePointAt(0).toString(16).toUpperCase()};`);
 
+// Directly patch OS/2 + hhea metric bytes in the TTF buffer.
+// svg2ttf ignores ascent/descent options — only binary patching works.
+function patchTTFMetrics(buf, { winAscent, winDescent, typoAscender, typoDescender, hheaAscender, hheaDescender }) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const numTables = dv.getUint16(4);
+  for (let i = 0; i < numTables; i++) {
+    const te = 12 + i * 16;
+    const tag = String.fromCharCode(dv.getUint8(te), dv.getUint8(te+1), dv.getUint8(te+2), dv.getUint8(te+3));
+    const off = dv.getUint32(te + 8);
+    if (tag === 'OS/2') {
+      dv.setInt16(off + 68, typoAscender);
+      dv.setInt16(off + 70, typoDescender);
+      dv.setUint16(off + 74, winAscent);
+      dv.setUint16(off + 76, winDescent);
+    } else if (tag === 'hhea') {
+      dv.setInt16(off + 4, hheaAscender);
+      dv.setInt16(off + 6, hheaDescender);
+    }
+  }
+  return buf;
+}
+
 export function buildTTF(name, glyphs, { wordSpace=300, weight='normal', style='normal' }={}) {
   const id = (name.replace(/[^A-Za-z0-9_-]+/g,'') || 'CustomFont') +
     (weight==='bold'?'Bold':'') + (style==='italic'?'Italic':'');
