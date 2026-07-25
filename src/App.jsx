@@ -146,8 +146,14 @@ export default function App() {
       <header className="app-header">
         <div className="app-header-row">
           <span className="app-brand">
-            <IcoPen />
-            Custom Font Studio
+            <span className="brand-icon"><IcoPen /></span>
+            <span className="brand-text">
+              <span className="brand-word brand-custom">Custom</span>
+              {' '}
+              <span className="brand-word brand-font">Font</span>
+              {' '}
+              <span className="brand-word brand-studio">Studio</span>
+            </span>
           </span>
 
           <nav className="app-nav">
@@ -195,7 +201,14 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <span>Made with care by BM</span>
+        <span style={{ display:'flex', alignItems:'center', gap:6 }}>
+          Made with{' '}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="footer-heart" aria-label="love">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.08C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.53L12 21.35z" fill="url(#heartGrad)"/>
+            <defs><linearGradient id="heartGrad" x1="2" y1="3" x2="22" y2="21" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#f87171"/><stop offset="100%" stopColor="#ec4899"/></linearGradient></defs>
+          </svg>
+          {' '}by BM
+        </span>
         <a href="https://github.com/life-web-arch/customfont" target="_blank" rel="noreferrer">GitHub</a>
       </footer>
 
