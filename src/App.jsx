@@ -15,13 +15,13 @@ const IcoTrash  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="no
 const IcoX      = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 
 // ── Session persistence helpers ───────────────────────────────────────────────
-function saveSession(tab, glyphs, mappings, fontName, preview) {
+function saveSession(tab, glyphs, mappings, fontName, preview, sourceUrl) {
   try {
     const slim = glyphs.map(g => ({
       id: g.id, blob: g.blob, thumbUrl: g.thumbUrl, pad: g.pad, row: g.row,
       w: g.canvas.width, h: g.canvas.height,
     }));
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ tab, glyphs: slim, mappings, fontName, preview }));
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ tab, glyphs: slim, mappings, fontName, preview, sourceUrl }));
   } catch (e) { console.warn('Session save failed:', e); }
 }
 
@@ -44,10 +44,10 @@ async function loadSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    const { tab, glyphs: slim, mappings, fontName, preview } = JSON.parse(raw);
+    const { tab, glyphs: slim, mappings, fontName, preview, sourceUrl } = JSON.parse(raw);
     if (!slim?.length) return null;
     const glyphs = await Promise.all(slim.map(restoreGlyph));
-    return { tab: tab ?? 0, glyphs, mappings: mappings ?? {}, fontName: fontName ?? '', preview: preview ?? null };
+    return { tab: tab ?? 0, glyphs, mappings: mappings ?? {}, fontName: fontName ?? '', preview: preview ?? null, sourceUrl: sourceUrl ?? null };
   } catch (e) { console.warn('Session restore failed:', e); return null; }
 }
 
@@ -96,10 +96,10 @@ export default function App() {
   const [mappings, setMappings] = useState({});
   const [fontName, setFontName] = useState('');
   const [preview, setPreview]   = useState(null);   // upload preview dataURL
+  const [sourceUrl, setSourceUrl] = useState(null);  // original image URL for re-cropping
   const [hydrated, setHydrated] = useState(false);  // wait for session restore
   const [showClear, setShowClear] = useState(false);
-  const [pendingGlyphs, setPendingGlyphs] = useState(null);  // awaiting crop review
-  const [pendingMeta, setPendingMeta] = useState(null);      // {dataUrl, chars, mode}
+
   const fontNameInputRef = useRef(null);
 
   // Restore session on mount
@@ -110,6 +110,7 @@ export default function App() {
         setMappings(s.mappings);
         setFontName(s.fontName);
         setPreview(s.preview);
+        setSourceUrl(s.sourceUrl ?? null);
         setTab(s.tab);
       }
       setHydrated(true);
@@ -122,13 +123,13 @@ export default function App() {
     if (!hydrated) return;
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveSession(tab, glyphs, mappings, fontName, preview);
+      saveSession(tab, glyphs, mappings, fontName, preview, sourceUrl);
     }, 400);
     return () => clearTimeout(saveTimer.current);
-  }, [tab, glyphs, mappings, fontName, preview, hydrated]);
+  }, [tab, glyphs, mappings, fontName, preview, sourceUrl, hydrated]);
 
   function clearSession() {
-    setGlyphs([]); setMappings({}); setFontName(''); setPreview(null); setTab(0);
+    setGlyphs([]); setMappings({}); setFontName(''); setPreview(null); setSourceUrl(null); setTab(0);
     setShowClear(false);
     localStorage.removeItem(SESSION_KEY);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -138,46 +139,41 @@ export default function App() {
   // session (glyphs, mappings, font name, preview, cfs_session in localStorage)
   // BEFORE the new image is processed. Does not touch cfs_font_history.
   function resetForFreshUpload() {
-    setGlyphs([]); setMappings({}); setFontName(''); setPreview(null);
+    setGlyphs([]); setMappings({}); setFontName(''); setPreview(null); setSourceUrl(null);
     localStorage.removeItem(SESSION_KEY);
   }
 
-  // Called by UploadPage after segmentation — show crop review first
+  // Called by UploadPage after segmentation — skip crop review, go straight to mapping
   const handleGlyphs = React.useCallback((g, dataUrl, chars=[], mode='fresh') => {
-    setPendingGlyphs(g);
-    setPendingMeta({ dataUrl, chars, mode });
+    setSourceUrl(dataUrl);
     setPreview(dataUrl);
-  }, []);
-
-  // Called by CropReviewPage after user confirms/adjusts crops
-  const handleCropConfirm = React.useCallback((adjustedGlyphs) => {
-    const { dataUrl, chars, mode } = pendingMeta;
-    setPendingGlyphs(null); setPendingMeta(null);
     if (mode === 'append') {
       setGlyphs(prev => {
         const offset = prev.length;
         if (chars.length) {
           setMappings(m => {
             const nm = { ...m };
-            adjustedGlyphs.forEach((_, i) => { if (chars[i]) nm[offset + i] = chars[i]; });
+            g.forEach((_, i) => { if (chars[i]) nm[offset + i] = chars[i]; });
             return nm;
           });
         }
-        return [...prev, ...adjustedGlyphs];
+        return [...prev, ...g];
       });
       setTab(1);
     } else {
-      setGlyphs(adjustedGlyphs);
+      setGlyphs(g);
       if (chars.length) {
         const m = {};
-        adjustedGlyphs.forEach((_, i) => { if (chars[i]) m[i] = chars[i]; });
+        g.forEach((_, i) => { if (chars[i]) m[i] = chars[i]; });
         setMappings(m);
       } else {
         setMappings({});
       }
       setPreview(dataUrl); setTab(1);
     }
-  }, [pendingMeta]);
+  }, []);
+
+
 
   const canMap    = glyphs.length > 0;
   const canExport = canMap && Object.keys(mappings).length > 0;
@@ -237,17 +233,13 @@ export default function App() {
       </header>
 
       <main>
-        {tab === 0 && !pendingGlyphs && <UploadPage
+        {tab === 0 && <UploadPage
           initialPreview={preview}
           hasGlyphs={glyphs.length > 0}
           onStartFresh={resetForFreshUpload}
           onGlyphs={handleGlyphs} />}
-        {tab === 0 && pendingGlyphs && <CropReviewPage
-          imageUrl={pendingMeta?.dataUrl}
-          glyphs={pendingGlyphs}
-          onConfirm={handleCropConfirm}
-          onBack={() => { setPendingGlyphs(null); setPendingMeta(null); }} />}
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings}
+          sourceUrl={sourceUrl} setGlyphs={setGlyphs}
           onDone={() => { setTab(2); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
         {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName}
           setFontName={setFontName} fontNameInputRef={fontNameInputRef} />}

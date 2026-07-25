@@ -26,13 +26,16 @@ const QUICK_FILL = [
   { label: 'Full Latin', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789' },
 ];
 
-export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
+export default function MappingPage({ glyphs, mappings, setMappings, sourceUrl, setGlyphs, onDone }) {
   const [selected, setSelected] = useState(null);
   const [activeGroup, setActiveGroup] = useState(0);
   const [search, setSearch] = useState('');
   const [customChar, setCustomChar] = useState('');
   const [zoom, setZoom] = useState(40);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [cropTarget, setCropTarget] = useState(null);
+  const [cropAdj, setCropAdj] = useState({ t:0, b:0, l:0, r:0 });
+  const cropPreviewRef = useRef(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 720);
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 720);
@@ -80,6 +83,66 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
 
   const usedChars = new Set(Object.values(mappings));
 
+  const openCropEditor = (i) => {
+    const g = glyphs[i];
+    setCropTarget({ glyphIdx: i, blob: g.blob, pad: g.pad ?? 24 });
+    setCropAdj({ t:0, b:0, l:0, r:0 });
+  };
+
+  useEffect(() => {
+    if (!cropTarget || !cropPreviewRef.current || !sourceUrl) return;
+    const { blob, pad } = cropTarget;
+    const img = new Image();
+    img.onload = () => {
+      const { t, b, l, r } = cropAdj;
+      const x0 = Math.max(0, blob.x0 - pad - l);
+      const y0 = Math.max(0, blob.y0 - pad - t);
+      const x1 = Math.min(img.width,  blob.x1 + pad + r);
+      const y1 = Math.min(img.height, blob.y1 + pad + b);
+      const sw = x1 - x0, sh = y1 - y0;
+      const maxW = Math.min(340, window.innerWidth - 80);
+      const scale = Math.min(1, maxW / sw, 300 / sh);
+      const dw = Math.round(sw * scale), dh = Math.round(sh * scale);
+      const c = cropPreviewRef.current;
+      c.width = dw; c.height = dh;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, x0, y0, sw, sh, 0, 0, dw, dh);
+      ctx.strokeStyle = '#7f9cf5';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, dw-2, dh-2);
+    };
+    img.src = sourceUrl;
+  }, [cropTarget, cropAdj, sourceUrl]);
+
+  const applyCrop = () => {
+    if (!cropTarget || !sourceUrl) return;
+    const { glyphIdx, blob, pad } = cropTarget;
+    const { t, b, l, r } = cropAdj;
+    const img = new Image();
+    img.onload = () => {
+      const x0 = Math.max(0, blob.x0 - pad - l);
+      const y0 = Math.max(0, blob.y0 - pad - t);
+      const x1 = Math.min(img.width,  blob.x1 + pad + r);
+      const y1 = Math.min(img.height, blob.y1 + pad + b);
+      const cw = x1 - x0, ch = y1 - y0;
+      const canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
+      const imageData = ctx.getImageData(0, 0, cw, ch);
+      const thumbUrl = canvas.toDataURL('image/png');
+      setGlyphs(prev => {
+        const next = [...prev];
+        next[glyphIdx] = { ...next[glyphIdx], canvas, imageData, thumbUrl, blob: { x0, y0, x1, y1 }, pad: 0 };
+        return next;
+      });
+      setCropTarget(null);
+    };
+    img.src = sourceUrl;
+  };
+
   return (<>
     <div className="mapping-layout">
       {/* Left: Glyph Grid */}
@@ -121,7 +184,22 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
                 title={ch ? `Mapped to: ${ch}` : 'Not mapped — click to select'}
                 className={`glyph-card${isSel ? ' is-selected' : ''}${ch ? ' is-mapped' : ''}`}
               >
-                <img src={g.thumbUrl} alt={`Glyph ${i}`} style={{ width: '100%', imageRendering: 'pixelated', display: 'block', background: '#fff' }} />
+                <div style={{ position:'relative' }}>
+                  <img src={g.thumbUrl} alt={`Glyph ${i}`} style={{ width: '100%', imageRendering: 'pixelated', display: 'block', background: '#fff' }} />
+                  {sourceUrl && (
+                    <button
+                      onClick={e => { e.stopPropagation(); openCropEditor(i); }}
+                      title="Adjust crop"
+                      style={{
+                        position:'absolute', top:2, right:2,
+                        background:'rgba(0,0,0,0.55)', border:'none',
+                        borderRadius:4, color:'#fff', fontSize:'0.65rem',
+                        padding:'1px 4px', cursor:'pointer', lineHeight:1.4,
+                        opacity: zoom < 50 ? 0 : 1,
+                      }}
+                    >✂</button>
+                  )}
+                </div>
                 <div style={{
                   width: '100%',
                   background: ch ? 'rgba(74,222,128,0.15)' : 'var(--surface2)',
@@ -242,6 +320,55 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
         </div>
       </div>
     </div>
+
+      {cropTarget && (
+        <div style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.7)',
+          display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+          onClick={() => setCropTarget(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:'var(--surface)', border:'1px solid var(--border)',
+            borderRadius:'var(--radius)', padding:'20px 18px',
+            maxWidth:400, width:'100%', boxShadow:'var(--shadow-md)',
+            animation:'fadeInUp .2s var(--ease) both',
+          }}>
+            <h3 style={{ marginBottom:4, fontSize:'1rem' }}>Adjust Crop — Glyph #{cropTarget.glyphIdx + 1}</h3>
+            <p style={{ color:'var(--muted)', fontSize:'0.78rem', marginBottom:12 }}>
+              Positive = expand outward · Negative = trim inward
+            </p>
+            <div style={{ display:'flex', justifyContent:'center', marginBottom:14,
+              background:'#fff', borderRadius:6, overflow:'hidden', border:'1px solid var(--border)' }}>
+              <canvas ref={cropPreviewRef} style={{ display:'block', maxWidth:'100%' }} />
+            </div>
+            {[
+              { key:'t', label:'Top' },
+              { key:'b', label:'Bottom' },
+              { key:'l', label:'Left' },
+              { key:'r', label:'Right' },
+            ].map(({ key, label }) => (
+              <label key={key} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, fontSize:'0.85rem' }}>
+                <span style={{ minWidth:52, color:'var(--muted)' }}>{label}</span>
+                <input type="range" min={-30} max={80} value={cropAdj[key]}
+                  onChange={e => setCropAdj(a => ({ ...a, [key]: +e.target.value }))}
+                  style={{ flex:1 }} />
+                <span style={{ fontFamily:'var(--font-mono)', minWidth:32, textAlign:'right', fontSize:'0.8rem' }}>
+                  {cropAdj[key] > 0 ? '+' : ''}{cropAdj[key]}px
+                </span>
+              </label>
+            ))}
+            <div style={{ display:'flex', gap:10, marginTop:14, justifyContent:'flex-end' }}>
+              <button onClick={() => setCropAdj({ t:0, b:0, l:0, r:0 })}
+                style={{ padding:'7px 14px', background:'var(--surface2)', border:'1px solid var(--border)',
+                  borderRadius:7, fontSize:'0.85rem', color:'var(--text)' }}>Reset</button>
+              <button onClick={() => setCropTarget(null)}
+                style={{ padding:'7px 14px', background:'var(--surface2)', border:'1px solid var(--border)',
+                  borderRadius:7, fontSize:'0.85rem', color:'var(--text)' }}>Cancel</button>
+              <button onClick={applyCrop}
+                style={{ padding:'7px 16px', background:'var(--accent2)', color:'#fff',
+                  borderRadius:7, fontWeight:700, fontSize:'0.85rem' }}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Custom confirm modal */}
       {showClearConfirm && (
