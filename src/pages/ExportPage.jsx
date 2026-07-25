@@ -193,7 +193,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         )
       };
       const updated = [...loadHistory(), entry];
-      saveHistory(updated); setHistory(updated);
+      saveHistory([...loadHistory(), entry]);
     } catch(e) { setStatus('❌ Error: '+e.message); }
     setBusy(false);
   }
@@ -210,20 +210,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       if(files.ttf) download(files.ttf, `${base}${suf}.ttf`, 'font/ttf');
     }
   }
-  async function restoreFromHistory(entry) {
-    try {
-      const seq=++fontSeqRef.current; const newFaceRef={};
-      for (const [vId,b64] of Object.entries(entry.variants)) {
-        const bytes=b64ToUint8(b64); const v=VARIANTS.find(x=>x.id===vId);
-        const fName=`cfhist-${entry.id}-${vId}-${seq}`;
-        await installFont(bytes,fName,{weight:v?.weight??'normal',style:v?.style??'normal'});
-        newFaceRef[vId]=fName;
-      }
-      fontFaceRef.current=newFaceRef;
-      setResults(Object.fromEntries(Object.entries(entry.variants).map(([id,b64])=>[id,{ttf:b64ToUint8(b64)}])));
-      setStatus(`✅ Restored "${entry.name}" from history.`); setShowHistory(false);
-    } catch(e) { setStatus('❌ Restore failed: '+e.message); }
-  }
+  // restoreFromHistory moved to HistoryPage
   async function handleImportFont(file) {
     if (!file) return; setImportStatus('Loading…');
     try {
@@ -232,14 +219,12 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       setImportedFamily(fName); setImportStatus(`✅ Loaded "${file.name}" — type below to preview`);
     } catch(e) { setImportStatus('❌ Failed: '+e.message); }
   }
-  function deleteEntry(id) {
-    const updated=history.filter(e=>e.id!==id); saveHistory(updated); setHistory(updated);
-  }
+  // deleteEntry moved to HistoryPage
 
   function clearSession() {
     if (!window.confirm('Clear all font data (history, glyphs cache) from localStorage? This frees storage space.')) return;
     localStorage.removeItem(LS_KEY);
-    setHistory([]);
+    // history state removed from ExportPage
     setResults({});
     setStatus('🗑️ Session data cleared from localStorage.');
   }
@@ -292,34 +277,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
             <span style={{ color:'var(--muted)', fontSize:'0.82rem' }}>TrueType — works on Windows, Mac, Linux, Android, iOS & all browsers</span>
           </div>
         </div>
-      </div>
-
-      {/* Live metrics canvas preview */}
-      <div style={{ ...S.card }}>
-        {!hasResults && (
-          <div style={{ marginBottom:10, padding:'8px 14px', background:'rgba(224,201,127,0.08)', border:'1px solid rgba(224,201,127,0.25)', borderRadius:8, fontSize:'0.83rem', color:'var(--accent)', display:'flex', alignItems:'center', gap:8 }}>
-            ⚡ Hit <strong>Generate Fonts</strong> below first — the canvas preview updates live after that.
-          </div>
-        )}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
-          <div>
-            <h3 style={{ fontSize:'1rem', marginBottom:2 }}>Live Metrics Preview</h3>
-            <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Canvas render — updates instantly as you drag sliders (requires at least one prior generation)</p>
-          </div>
-          <div style={S.row}>
-            <span style={{ fontSize:'0.82rem', color:'var(--muted)' }}>Size</span>
-            <input type="range" min={24} max={96} value={previewSize} onChange={e=>setPreviewSize(+e.target.value)} style={{ width:70 }} />
-            <span style={S.mono}>{previewSize}px</span>
-          </div>
-        </div>
-        <div style={{ overflowX:'auto', marginBottom:10 }}>
-          <GlyphPreviewCanvas glyphs={glyphs} mappings={mappings}
-            wordSpace={wordSpace} lsb={lsb} rsb={rsb}
-            text={previewText.split('\n')[0]||'Hello'} size={previewSize} />
-        </div>
-        <input type="text" value={previewText.split('\n')[0]}
-          onChange={e=>setPreviewText(e.target.value)} placeholder="Preview text…"
-          style={{ fontSize:'0.86rem' }} />
       </div>
 
       {/* Generate */}
