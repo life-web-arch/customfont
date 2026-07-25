@@ -3,8 +3,9 @@ import UploadPage from './pages/UploadPage.jsx';
 import MappingPage from './pages/MappingPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import HelpPage from './pages/HelpPage.jsx';
+import HistoryPage from './pages/HistoryPage.jsx';
 
-const TABS = ['Upload', 'Map Glyphs', 'Export', 'Help & Docs'];
+const TABS = ['Upload', 'Map Glyphs', 'Export', 'History', 'Help & Docs'];
 
 export default function App() {
   const [tab, setTab] = useState(0);
@@ -53,7 +54,8 @@ export default function App() {
         {tab === 0 && <UploadPage onGlyphs={g => { setGlyphs(g); setMappings({}); setTab(1); }} />}
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings} onDone={() => setTab(2)} />}
         {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName} />}
-        {tab === 3 && <HelpPage />}
+        {tab === 3 && <HistoryPage />}
+        {tab === 4 && <HelpPage />}
       </main>
 
       <footer className="app-footer">

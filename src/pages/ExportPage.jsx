@@ -211,6 +211,14 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
     const updated=history.filter(e=>e.id!==id); saveHistory(updated); setHistory(updated);
   }
 
+  function clearSession() {
+    if (!window.confirm('Clear all font data (history, glyphs cache) from localStorage? This frees storage space.')) return;
+    localStorage.removeItem(LS_KEY);
+    setHistory([]);
+    setResults({});
+    setStatus('🗑️ Session data cleared from localStorage.');
+  }
+
   const hasResults = Object.keys(results).length > 0;
   const generatedFamily = hasResults ? Object.values(fontFaceRef.current).join(', ')+', serif' : null;
   const S = {
@@ -282,6 +290,11 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
 
       {/* Live metrics canvas preview */}
       <div style={{ ...S.card }}>
+        {!hasResults && (
+          <div style={{ marginBottom:10, padding:'8px 14px', background:'rgba(224,201,127,0.08)', border:'1px solid rgba(224,201,127,0.25)', borderRadius:8, fontSize:'0.83rem', color:'var(--accent)', display:'flex', alignItems:'center', gap:8 }}>
+            ⚡ Hit <strong>Generate Fonts</strong> below first — the canvas preview updates live after that.
+          </div>
+        )}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
           <div>
             <h3 style={{ fontSize:'1rem', marginBottom:2 }}>Live Metrics Preview</h3>
@@ -349,9 +362,16 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
         <div style={{ ...S.card }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14, flexWrap:'wrap', gap:8 }}>
             <h3>Download Files</h3>
-            <button onClick={downloadAll} style={{ padding:'8px 18px', background:'var(--accent2)', color:'#fff', borderRadius:7, fontWeight:600 }}>
-              ⬇ Download All
-            </button>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              <button onClick={downloadAll} style={{ padding:'8px 18px', background:'var(--accent2)', color:'#fff', borderRadius:7, fontWeight:600 }}>
+                ⬇ Download All
+              </button>
+              <button onClick={clearSession}
+                title="Free up localStorage space used by this session"
+                style={{ padding:'8px 14px', background:'rgba(248,113,113,0.10)', border:'1px solid rgba(248,113,113,0.3)', borderRadius:7, color:'var(--danger)', fontSize:'0.84rem' }}>
+                🗑️ Clear Data
+              </button>
+            </div>
           </div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
             {VARIANTS.filter(v=>selectedVariants.includes(v.id)).map(v=>{
