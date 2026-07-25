@@ -1,7 +1,7 @@
 // Browser segmentation: image -> detected glyph crops + bounding boxes
 import { connectedComponents, mergeParts, orderBlobs } from './blob-core.js';
 
-const PAD = 10;
+const PAD = 24;
 
 function toGray(d) {
   const g = new Uint8Array(d.data.length / 4);
@@ -59,7 +59,7 @@ function binarize(imgData, delta=40) {
   const gray=normalise(toGray(imgData));
   const bg=localBg(gray,width,height);
   let ink=new Uint8Array(width*height);
-  for (let i=0;i<ink.length;i++) if (gray[i]<165 && gray[i]<bg[i]-delta) ink[i]=1;
+  for (let i=0;i<ink.length;i++) if (gray[i]<200 && gray[i]<bg[i]-delta) ink[i]=1;
   ink=morph(morph(ink,width,height,true),width,height,false);
   return ink;
 }
