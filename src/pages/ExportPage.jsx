@@ -230,8 +230,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const vibePrompt = [
     `I have a custom handmade font called "${fontName || 'MyFont'}" generated using customfont.vercel.app, exported as TTF format.`,
     ``,
-    `I will attach the font file(s) here. If the font file is absent, please ask me explicitly for it before proceeding further.`,
-    ``,
     `Font file(s):`,
     `- ${variantFiles || base+'.ttf (Normal)'}`,
     ``,

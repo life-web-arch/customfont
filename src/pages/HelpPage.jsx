@@ -96,7 +96,6 @@ Click **"Show Prompt"** to expand it, then **"📋 Copy Prompt"** to copy a read
 
 The prompt includes:
 - Your exact font file name(s) and variants
-- Instructions for the AI to ask you for the font file if not attached
 - Steps to upload the font to your GitHub repo
 - The exact CSS @font-face snippet for your font
 - Instructions for the AI to ask about your project before suggesting where to use the font
