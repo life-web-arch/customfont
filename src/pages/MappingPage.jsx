@@ -1,3 +1,4 @@
+import { recropFromImageData } from '../lib/segmenter.js';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 // SVG icons
@@ -120,19 +121,15 @@ export default function MappingPage({ glyphs, mappings, setMappings, sourceUrl, 
     const { t, b, l, r } = cropAdj;
     const img = new Image();
     img.onload = () => {
-      const x0 = Math.max(0, blob.x0 - pad - l);
-      const y0 = Math.max(0, blob.y0 - pad - t);
-      const x1 = Math.min(img.width,  blob.x1 + pad + r);
-      const y1 = Math.min(img.height, blob.y1 + pad + b);
-      const cw = x1 - x0, ch = y1 - y0;
-      const canvas = document.createElement('canvas');
-      canvas.width = cw; canvas.height = ch;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, cw, ch);
-      ctx.drawImage(img, x0, y0, cw, ch, 0, 0, cw, ch);
-      const imageData = ctx.getImageData(0, 0, cw, ch);
-      const thumbUrl = canvas.toDataURL('image/png');
+      const fc = document.createElement('canvas');
+      fc.width = img.width; fc.height = img.height;
+      fc.getContext('2d').drawImage(img, 0, 0);
+      const fullImgData = fc.getContext('2d').getImageData(0, 0, img.width, img.height);
+      const x0 = Math.round(Math.max(0, blob.x0 - pad - l));
+      const y0 = Math.round(Math.max(0, blob.y0 - pad - t));
+      const x1 = Math.round(Math.min(img.width  - 1, blob.x1 + pad + r));
+      const y1 = Math.round(Math.min(img.height - 1, blob.y1 + pad + b));
+      const { canvas, imageData, thumbUrl } = recropFromImageData(fullImgData, x0, y0, x1, y1, 40);
       setGlyphs(prev => {
         const next = [...prev];
         next[glyphIdx] = { ...next[glyphIdx], canvas, imageData, thumbUrl, blob: { x0, y0, x1, y1 }, pad: 0 };

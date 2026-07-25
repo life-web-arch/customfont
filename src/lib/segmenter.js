@@ -103,3 +103,27 @@ export async function segmentFromImageData(imgData, { delta=40 }={}) {
     };
   });
 }
+
+// Re-crop a region from a full image using the same binarization as segmentation.
+// Returns { canvas, imageData, thumbUrl } with pure black-on-white output.
+export function recropFromImageData(fullImgData, x0, y0, x1, y1, delta=40) {
+  const { width, height } = fullImgData;
+  const ink = binarize(fullImgData, delta);
+  const cx0 = Math.max(0, x0), cy0 = Math.max(0, y0);
+  const cx1 = Math.min(width-1, x1), cy1 = Math.min(height-1, y1);
+  const w = cx1 - cx0 + 1, h = cy1 - cy0 + 1;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const imd = ctx.createImageData(w, h);
+  imd.data.fill(255);
+  for (let row = 0; row < h; row++) {
+    for (let col = 0; col < w; col++) {
+      if (ink[(cy0 + row) * width + (cx0 + col)]) {
+        const p = (row * w + col) * 4;
+        imd.data[p] = imd.data[p+1] = imd.data[p+2] = 0; imd.data[p+3] = 255;
+      }
+    }
+  }
+  ctx.putImageData(imd, 0, 0);
+  return { canvas: c, imageData: imd, thumbUrl: c.toDataURL('image/png') };
+}
