@@ -236,7 +236,7 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
   const cssSnippet = fontFaceCSS(fontName, fontName.replace(/\s+/g,'-'),
     VARIANTS.filter(v=>selectedVariants.includes(v.id)).map(v=>({
       weight:v.weight, style:v.style,
-      filename:`${fontName.replace(/\s+/g,'-')}${v.id==='normal'?'':\`-\${v.label.replace(' ','')}\`}`
+      filename:fontName.replace(/\s+/g,'-')+(v.id==='normal'?'':'-'+v.label.replace(' ',''))
     })));
   const sliders = [
     { label:'Word space (px)', val:wordSpace, set:setWordSpace, min:100, max:600 },
