@@ -96,6 +96,7 @@ export default function App() {
   const [glyphs, setGlyphs]     = useState([]);
   const [mappings, setMappings] = useState({});
   const [glyphOverrides, setGlyphOverrides] = useState({});
+  const [spacing, setSpacing] = useState({ lsb: 50, rsb: 50, wordSpace: 300 });
   const [fontName, setFontName] = useState('');
   const [preview, setPreview]   = useState(null);   // upload preview dataURL
   const [sourceUrl, setSourceUrl] = useState(null);  // original image URL for re-cropping
@@ -245,9 +246,9 @@ export default function App() {
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings}
           sourceUrl={sourceUrl} setGlyphs={setGlyphs}
           onDone={() => { setTab(2); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
-        {tab === 2 && <AlignPage glyphs={glyphs} mappings={mappings} glyphOverrides={glyphOverrides} setGlyphOverrides={setGlyphOverrides} onNext={() => { setTab(3); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
+        {tab === 2 && <AlignPage glyphs={glyphs} mappings={mappings} glyphOverrides={glyphOverrides} setGlyphOverrides={setGlyphOverrides} spacing={spacing} setSpacing={setSpacing} onNext={() => { setTab(3); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
         {tab === 3 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName}
-          setFontName={setFontName} fontNameInputRef={fontNameInputRef} glyphOverrides={glyphOverrides} />}
+          setFontName={setFontName} fontNameInputRef={fontNameInputRef} glyphOverrides={glyphOverrides} spacing={spacing} />}
         {tab === 4 && <HistoryPage />}
         {tab === 5 && <HelpPage />}
       </main>

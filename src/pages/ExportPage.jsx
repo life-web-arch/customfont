@@ -84,7 +84,7 @@ const VARIANTS = [
 ];
 // FORMATS removed — TTF only
 
-export default function ExportPage({ glyphs, mappings, fontName, setFontName, fontNameInputRef, glyphOverrides = {} }) {
+export default function ExportPage({ glyphs, mappings, fontName, setFontName, fontNameInputRef, glyphOverrides = {}, spacing: spacingProp }) {
   const _p = loadPrefs();
   const [busy, setBusy]                     = useState(false);
   const [genProgress, setGenProgress]       = useState({ current: 0, total: 0 });
@@ -95,9 +95,9 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const [previewText, setPreviewText]       = useState(_p.previewText || 'Hello World\nThe quick brown fox\n0123456789');
   const [previewSize, setPreviewSize]       = useState(_p.previewSize || 48);
   const [previewVariant, setPreviewVariant]  = useState(_p.previewVariant || 'normal');
-  const [wordSpace, setWordSpace]           = useState(_p.wordSpace || 300);
-  const [lsb, setLsb]                       = useState(_p.lsb ?? 50);
-  const [rsb, setRsb]                       = useState(_p.rsb ?? 50);
+  const [wordSpace, setWordSpace]           = useState(spacingProp?.wordSpace ?? _p.wordSpace ?? 300);
+  const [lsb, setLsb]                       = useState(spacingProp?.lsb ?? _p.lsb ?? 50);
+  const [rsb, setRsb]                       = useState(spacingProp?.rsb ?? _p.rsb ?? 50);
   // history state moved to HistoryPage
   // showHistory removed — History is now its own tab
   const [importedFamily, setImportedFamily] = useState(null);
