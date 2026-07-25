@@ -45,7 +45,7 @@ export default function App() {
             className="app-fontname"
             value={fontName}
             onChange={e => setFontName(e.target.value)}
-            placeholder="Type font name…"
+            placeholder="Type a name for your custom font file"
             title="Font family name"
           />
         </div>
