@@ -98,6 +98,8 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const [copiedPrompt, setCopiedPrompt]     = useState(false);
   const [showPrompt, setShowPrompt]         = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [genDone, setGenDone] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
   const fontFaceRef    = useRef({});
   const fontSeqRef     = useRef(0);
   const resultsRef      = useRef(null);
@@ -142,6 +144,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
 
   async function generate() {
     if (!fontName.trim()) { requestFontName(); return; }
+    setGenDone(false);
     setBusy(true); setResults({});
     try {
       const out = {};
@@ -157,6 +160,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       }
       setResults(out);
       setStatus('done: Your font is ready.');
+      setGenDone(true); setTimeout(()=>setGenDone(false), 2500);
       const entry = {
         id: Date.now(),
         name: fontName,
@@ -274,6 +278,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           fontFaceRef.current[vId] = fName;
         }
         setResults(prev => ({ ...prev, ...out }));
+        setPreviewKey(k => k + 1);
       } catch(e) { console.warn('Slider rebuild failed:', e); }
     }, 350);
     return () => clearTimeout(debounceRef.current);
@@ -295,14 +300,24 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       {/* Settings */}
       <div ref={resultsRef} style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px,1fr))', gap:16, marginBottom:20 }}>
         <div style={S.card}>
-          <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Font Variants</h3>
-          {VARIANTS.map(v=>(
-            <label key={v.id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:9, cursor:'pointer' }}>
-              <input type="checkbox" checked={selectedVariants.includes(v.id)}
-                onChange={e=>setSelectedVariants(prev=>e.target.checked?[...prev,v.id]:prev.filter(x=>x!==v.id))} />
-              <span style={{ fontWeight:v.weight==='bold'?700:400, fontStyle:v.style }}>{v.label}</span>
-            </label>
-          ))}
+          <h3 style={{ fontSize:'0.95rem', marginBottom:14 }}>Font Variants</h3>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            {VARIANTS.map(v=>{
+              const on = selectedVariants.includes(v.id);
+              return (
+                <label key={v.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 12px',
+                  borderRadius:8, cursor:'pointer', transition:'background .15s, border-color .15s',
+                  border: on ? '1.5px solid var(--accent2)' : '1.5px solid var(--border)',
+                  background: on ? 'rgba(127,156,245,0.10)' : 'var(--surface2)' }}>
+                  <input type="checkbox" checked={on}
+                    onChange={e=>setSelectedVariants(prev=>e.target.checked?[...prev,v.id]:prev.filter(x=>x!==v.id))}
+                    style={{ accentColor:'var(--accent2)', width:15, height:15, flexShrink:0 }} />
+                  <span style={{ fontWeight:v.weight==='bold'?700:400, fontStyle:v.style, fontSize:'0.88rem',
+                    color: on ? 'var(--text)' : 'var(--muted)' }}>{v.label}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
         <div style={S.card}>
           <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Output Format</h3>
@@ -319,7 +334,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         <button onClick={generate}
           disabled={busy||selectedVariants.length===0||mappedEntries.length===0}
           className="btn-primary" style={{ padding:'12px 32px', fontSize:'1rem' }}>
-          {busy ? <><span className="spinner" style={{marginRight:6}} /> Building…</> : <><IcoZap /><span style={{marginLeft:6}}>Generate Fonts</span></>}
+          {busy ? <><span className="spinner" style={{marginRight:6}} />Generating…</> : genDone ? <><IcoCheck /><span style={{marginLeft:6}}>Generated!</span></> : <><IcoZap /><span style={{marginLeft:6}}>Generate Fonts</span></>}
         </button>
         {mappedEntries.length===0 && <span style={{ color:'var(--muted)', fontSize:'0.85rem' }}>Map some glyphs first</span>}
       </div>
@@ -378,7 +393,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
               </label>
             </div>
           </div>
-          <textarea ref={previewRef} value={previewText}
+          <textarea key={previewKey} ref={previewRef} value={previewText}
             onChange={e=>{ setPreviewText(e.target.value); }}
             onFocus={()=>{ previewRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }}
             onClick={()=>{ previewRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }}
