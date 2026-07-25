@@ -50,7 +50,7 @@ export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStar
       onGlyphs(result, dataUrl, autoAssign ? chars : [], mode);
     } catch (e) { setStatus('Error: ' + e.message); }
     setBusy(false);
-  }, [delta, onGlyphs]);
+  }, [delta, onGlyphs, charSeq, autoAssign]);
 
   const handleFile = useCallback((file) => {
     if (!file) return;
