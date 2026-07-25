@@ -326,7 +326,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       </div>
 
       {/* Shared variant selector — controls both canvas and textarea previews */}
-      {hasResults && Object.keys(cachedPathsRef.current).length > 1 && (
+      {hasResults && Object.keys(cachedPathsRef.current).length > 0 && (
         <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
           <span style={{ fontSize:'0.8rem', color:'var(--muted)', alignSelf:'center', marginRight:4 }}>Preview variant:</span>
           {VARIANTS.filter(v=>selectedVariants.includes(v.id) && results[v.id]).map(v=>(
