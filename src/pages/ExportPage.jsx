@@ -105,6 +105,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const [copiedCSS, setCopiedCSS]           = useState(false);
   const [copiedPrompt, setCopiedPrompt]     = useState(false);
   const [showPrompt, setShowPrompt]         = useState(false);
+  const [showCSS, setShowCSS]               = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [genDone, setGenDone] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
@@ -509,12 +510,25 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       {/* CSS snippet */}
       {hasResults && (
         <div style={{ ...S.card }}>
-          <h3 style={{ marginBottom:10 }}>CSS @font-face Snippet</h3>
-          <pre style={{ fontFamily:'var(--font-mono)', fontSize:'0.78rem', background:'var(--surface2)', padding:14, borderRadius:8, overflowX:'auto', lineHeight:1.6, color:'var(--text)', whiteSpace:'pre-wrap' }}>{cssSnippet}</pre>
-          <button onClick={()=>{navigator.clipboard.writeText(cssSnippet);setCopiedCSS(true);setTimeout(()=>setCopiedCSS(false),2000);}}
-            style={{ marginTop:8, padding:'6px 14px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.84rem' }}>
-            <>{copiedCSS ? <><IcoCheck /><span style={{marginLeft:5}}>Copied!</span></> : <><IcoCopy /><span style={{marginLeft:5}}>Copy CSS</span></>}</>
-          </button>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+            <div>
+              <h3 style={{ fontSize:'1rem', marginBottom:2, display:'flex', alignItems:'center', gap:7 }}><IcoCopy /> CSS @font-face Snippet</h3>
+              <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Paste into your stylesheet to register the font</p>
+            </div>
+            <button onClick={()=>setShowCSS(p=>!p)}
+              style={{ padding:'5px 14px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:6, fontSize:'0.84rem', color:'var(--text)', whiteSpace:'nowrap' }}>
+              {showCSS ? 'Hide' : 'Show CSS'}
+            </button>
+          </div>
+          {showCSS && (
+            <div style={{ marginTop:12 }}>
+              <pre style={{ fontFamily:'var(--font-mono)', fontSize:'0.78rem', background:'var(--surface2)', padding:14, borderRadius:8, overflowX:'auto', lineHeight:1.6, color:'var(--text)', whiteSpace:'pre-wrap' }}>{cssSnippet}</pre>
+              <button onClick={()=>{navigator.clipboard.writeText(cssSnippet);setCopiedCSS(true);setTimeout(()=>setCopiedCSS(false),2000);}}
+                style={{ marginTop:8, padding:'6px 16px', background: copiedCSS ? 'var(--success)' : 'var(--accent2)', color:'#fff', borderRadius:6, fontSize:'0.84rem', fontWeight:600, cursor:'pointer' }}>
+                <>{copiedCSS ? <><IcoCheck /><span style={{marginLeft:5}}>Copied!</span></> : <><IcoCopy /><span style={{marginLeft:5}}>Copy CSS</span></>}</>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
