@@ -90,7 +90,7 @@ export default function HistoryPage() {
     }),
   };
 
-  return (
+  return (<>
     <div>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 8 }}>
@@ -217,5 +217,5 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
-  );
+  </>);
 }

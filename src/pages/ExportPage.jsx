@@ -287,7 +287,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
     { label:'Right bearing',   val:rsb,       set:setRsb,       min:0,   max:200 },
   ];
 
-  return (
+  return (<>
     <div>
       <div style={{ marginBottom:24 }}>
         <h2 style={{ fontSize:'1.4rem', marginBottom:4 }}>Export Font</h2>
@@ -525,5 +525,5 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           </div>
         </div>
       )}
-  );
+  </>);
 }
