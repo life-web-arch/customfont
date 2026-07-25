@@ -86,6 +86,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const [showPrompt, setShowPrompt]         = useState(false);
   const fontFaceRef    = useRef({});
   const fontSeqRef     = useRef(0);
+  const resultsRef      = useRef(null);
   const mappedEntries = Object.entries(mappings);
 
   async function buildVariant(variant) {
@@ -153,6 +154,11 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       saveHistory([...loadHistory(), entry]);
     } catch(e) { setStatus('❌ Error: '+e.message); }
     setBusy(false);
+    setTimeout(() => {
+      if (resultsRef.current) {
+        resultsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   }
 
   function download(data, filename, mime) {
@@ -246,7 +252,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       </div>
 
       {/* Settings */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px,1fr))', gap:16, marginBottom:20 }}>
+      <div ref={resultsRef} style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px,1fr))', gap:16, marginBottom:20 }}>
         <div style={S.card}>
           <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Font Variants</h3>
           {VARIANTS.map(v=>(

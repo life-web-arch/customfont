@@ -54,7 +54,7 @@ export default function App() {
       {/* Page */}
       <main>
         {tab === 0 && <UploadPage onGlyphs={g => { setGlyphs(g); setMappings({}); setTab(1); }} />}
-        {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings} onDone={() => setTab(2)} />}
+        {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings} onDone={() => { setTab(2); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
         {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName} setFontName={setFontName} fontNameInputRef={fontNameInputRef} />}
         {tab === 3 && <HistoryPage />}
         {tab === 4 && <HelpPage />}

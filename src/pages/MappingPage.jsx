@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 
 // All character groups for the picker
 const CHAR_GROUPS = [
@@ -29,6 +29,12 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
   const [search, setSearch] = useState('');
   const [customChar, setCustomChar] = useState('');
   const [zoom, setZoom] = useState(40);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 720);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 720);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const mapped = Object.keys(mappings).length;
   const total = glyphs.length;
@@ -95,7 +101,9 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
           display: 'grid',
           gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))`,
           gap: 8,
-          maxHeight: '480px',
+          maxHeight: isMobile
+            ? `${2 * (zoom + 30) + 8}px`
+            : '480px',
           overflowY: 'auto',
           paddingRight: 4,
         }}>
