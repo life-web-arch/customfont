@@ -1,6 +1,6 @@
 // Placed glyphs -> font binaries (MIT, draw-your-font) — extended for bold/italic variants
 import svg2ttf from 'svg2ttf';
-import ttf2woff from 'ttf2woff';
+// ttf2woff removed — using pure browser WOFF builder below
 import { UPM, ASCENT, DESCENT, XH, CAP } from './metrics.js';
 
 const esc = ch => '&#x' + ch.codePointAt(0).toString(16).toUpperCase() + ';';
@@ -31,9 +31,72 @@ export function buildTTF(name, glyphs, { wordSpace=300, weight='normal', style='
   return new Uint8Array(ttf.buffer);
 }
 
+// Pure-browser WOFF 1.0 builder — no Node Buffer needed
 export function toWoff(ttf) {
-  const out = ttf2woff(new Uint8Array(ttf));
-  return new Uint8Array(out.buffer || out);
+  const src = ttf instanceof Uint8Array ? ttf : new Uint8Array(ttf);
+  const sfntSize = src.length;
+  const numTables = (src[4] << 8) | src[5];
+
+  // WOFF header = 44 bytes
+  const woffSize = 44 + numTables * 20 + sfntSize;
+  const out = new Uint8Array(woffSize);
+  const dv = new DataView(out.buffer);
+  const srcDv = new DataView(src.buffer, src.byteOffset, src.byteLength);
+
+  let offset = 0;
+  // signature 'wOFF'
+  dv.setUint32(offset, 0x774F4646); offset += 4;
+  // flavor (sfVersion)
+  dv.setUint32(offset, srcDv.getUint32(0)); offset += 4;
+  // length (placeholder — fill later)
+  const lengthOffset = offset; dv.setUint32(offset, 0); offset += 4;
+  // numTables
+  dv.setUint16(offset, numTables); offset += 2;
+  // reserved
+  dv.setUint16(offset, 0); offset += 2;
+  // totalSfntSize
+  dv.setUint32(offset, sfntSize); offset += 4;
+  // majorVersion, minorVersion
+  dv.setUint16(offset, 1); offset += 2;
+  dv.setUint16(offset, 0); offset += 2;
+  // metaOffset, metaLength, metaOrigLength
+  dv.setUint32(offset, 0); offset += 4;
+  dv.setUint32(offset, 0); offset += 4;
+  dv.setUint32(offset, 0); offset += 4;
+  // privOffset, privLength
+  dv.setUint32(offset, 0); offset += 4;
+  dv.setUint32(offset, 0); offset += 4;
+
+  // Copy table directory + table data uncompressed (compLength = origLength)
+  const tableDirSrc = 12; // sfnt table dir starts at byte 12
+  const tableDataStart = offset + numTables * 20;
+  let dataWritePos = tableDataStart;
+
+  for (let i = 0; i < numTables; i++) {
+    const te = tableDirSrc + i * 16;
+    const tag      = srcDv.getUint32(te);
+    const checksum = srcDv.getUint32(te + 4);
+    const sfntOff  = srcDv.getUint32(te + 8);
+    const origLen  = srcDv.getUint32(te + 12);
+
+    // Write WOFF table directory entry
+    dv.setUint32(offset, tag);       offset += 4;
+    dv.setUint32(offset, dataWritePos); offset += 4; // offset into WOFF file
+    dv.setUint32(offset, origLen);   offset += 4; // compLength (uncompressed = same)
+    dv.setUint32(offset, origLen);   offset += 4; // origLength
+    dv.setUint32(offset, checksum);  offset += 4;
+
+    // Copy table data
+    out.set(src.subarray(sfntOff, sfntOff + origLen), dataWritePos);
+    // Pad to 4-byte boundary
+    const padded = (origLen + 3) & ~3;
+    dataWritePos += padded;
+  }
+
+  // Fill total length
+  dv.setUint32(lengthOffset, dataWritePos);
+
+  return out.subarray(0, dataWritePos);
 }
 
 export async function toWoff2(ttf) {
