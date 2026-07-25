@@ -87,6 +87,9 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const fontFaceRef    = useRef({});
   const fontSeqRef     = useRef(0);
   const resultsRef      = useRef(null);
+  const debounceRef     = useRef(null);
+  const previewRef      = useRef(null);
+  const lastSliderVals  = useRef({ wordSpace, lsb, rsb });
   const mappedEntries = Object.entries(mappings);
 
   async function buildVariant(variant) {
@@ -238,6 +241,33 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
     `Ask me the framework/stack if unsure, then provide the actual CSS classes or component code to apply the font with the sizes and variants you recommended.`,
   ].join('\n');
 
+  // Auto-rebuild when metrics sliders change (only after first generate)
+  useEffect(() => {
+    if (!Object.keys(results).length) return; // nothing built yet
+    if (
+      lastSliderVals.current.wordSpace === wordSpace &&
+      lastSliderVals.current.lsb === lsb &&
+      lastSliderVals.current.rsb === rsb
+    ) return;
+    lastSliderVals.current = { wordSpace, lsb, rsb };
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const out = {};
+        for (const vId of selectedVariants) {
+          const v = VARIANTS.find(x => x.id === vId);
+          const { ttfBytes } = await buildVariant(v);
+          out[vId] = { ttf: ttfBytes };
+          const fName = `cfprev-${fontName}-${vId}-${++fontSeqRef.current}`;
+          await installFont(ttfBytes, fName, { weight: v.weight, style: v.style });
+          fontFaceRef.current[vId] = fName;
+        }
+        setResults(prev => ({ ...prev, ...out }));
+      } catch(e) { console.warn('Slider rebuild failed:', e); }
+    }, 350);
+    return () => clearTimeout(debounceRef.current);
+  }, [wordSpace, lsb, rsb]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const sliders = [
     { label:'Word space (px)', val:wordSpace, set:setWordSpace, min:100, max:600 },
     { label:'Left bearing',    val:lsb,       set:setLsb,       min:0,   max:200 },
@@ -337,7 +367,10 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
               </label>
             </div>
           </div>
-          <textarea value={previewText} onChange={e=>setPreviewText(e.target.value)}
+          <textarea ref={previewRef} value={previewText}
+            onChange={e=>{ setPreviewText(e.target.value); }}
+            onFocus={()=>{ previewRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }}
+            onClick={()=>{ previewRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }}
             style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:140,
               background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:14, resize:'vertical' }} />
           <p style={{ marginTop:6, color:'var(--muted)', fontSize:'0.75rem' }}>Characters not in your font fall back to system serif.</p>
@@ -415,7 +448,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, flexWrap:'wrap', gap:8 }}>
             <div>
               <h3 style={{ fontSize:'1rem', marginBottom:2 }}>🤖 Vibe Coding Prompt</h3>
-              <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Copy this prompt and paste it to Claude, Gemini, ChatGPT or any AI coding agent</p>
+              <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Copy this prompt and paste it to Claude, Gemini, ChatGPT or any AI coding agent, to implement your custom font <strong style={{color:'var(--accent)'}}>{fontName || 'MyFont'}</strong> in your website</p>
             </div>
             <button onClick={()=>setShowPrompt(p=>!p)}
               style={{ padding:'6px 14px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:6, fontSize:'0.84rem', color:'var(--text)', cursor:'pointer' }}>
