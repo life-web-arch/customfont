@@ -3,9 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  optimizeDeps: {
-    exclude: ['wawoff2'],
-  },
+  // optimizeDeps: wawoff2 removed
   build: {
     target: 'es2020',
   },

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { potrace, init as initPotrace } from 'esm-potrace-wasm';
 import svgpath from 'svgpath';
 import { placeGlyph, applyItalic, band } from '../lib/metrics.js';
-import { buildTTF, toWoff, toWoff2, fontFaceCSS } from '../lib/assemble.js';
+import { buildTTF, fontFaceCSS } from '../lib/assemble.js';
 
 const PAD = 10;
 const LS_KEY = 'cfs_font_history';
@@ -106,14 +106,14 @@ const VARIANTS = [
   { id:'italic',    label:'Italic',      weight:'normal', style:'italic',  italicDeg:12 },
   { id:'boldItalic',label:'Bold Italic', weight:'bold',   style:'italic',  weightPx:2, italicDeg:12 },
 ];
-const FORMATS = ['TTF','WOFF','WOFF2'];
+// FORMATS removed — TTF only
 
 export default function ExportPage({ glyphs, mappings, fontName }) {
   const [busy, setBusy]                     = useState(false);
   const [status, setStatus]                 = useState('');
   const [results, setResults]               = useState({});
   const [selectedVariants, setSelectedVariants] = useState(['normal']);
-  const [selectedFormats, setSelectedFormats]   = useState(['TTF','WOFF2']);
+  // Formats: TTF only (WOFF2 WASM hangs on mobile; TTF works everywhere)
   const [previewText, setPreviewText]       = useState('Hello World\nThe quick brown fox\n0123456789');
   const [previewSize, setPreviewSize]       = useState(48);
   const [wordSpace, setWordSpace]           = useState(300);
@@ -155,8 +155,7 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
         setStatus(`Building ${v.label}…`);
         const { ttfBytes } = await buildVariant(v);
         out[vId] = { ttf: ttfBytes };
-        if (selectedFormats.includes('WOFF'))  { setStatus(`Converting ${v.label} → WOFF…`);  out[vId].woff  = await toWoff(ttfBytes); }
-        if (selectedFormats.includes('WOFF2')) { setStatus(`Converting ${v.label} → WOFF2…`); out[vId].woff2 = await toWoff2(ttfBytes); }
+        // TTF only — no WOFF/WOFF2 conversion
         const fName = `cfprev-${fontName}-${vId}-${++fontSeqRef.current}`;
         await installFont(ttfBytes, fName, { weight: v.weight, style: v.style });
         fontFaceRef.current[vId] = fName;
@@ -167,12 +166,10 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
         id: Date.now(),
         name: fontName,
         date: new Date().toLocaleString(),
-        formats: selectedFormats,
+        formats: ['TTF'],
         variants: Object.fromEntries(
           Object.entries(out).map(([id, f]) => [id, {
-            ttf:   f.ttf   ? uint8ToB64(f.ttf)   : null,
-            woff:  f.woff  ? uint8ToB64(f.woff)  : null,
-            woff2: f.woff2 ? uint8ToB64(f.woff2) : null,
+            ttf: f.ttf ? uint8ToB64(f.ttf) : null,
           }])
         )
       };
@@ -191,9 +188,7 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
     const base=fontName.replace(/\s+/g,'-');
     for (const [vId,files] of Object.entries(results)) {
       const v=VARIANTS.find(x=>x.id===vId); const suf=vId==='normal'?'':`-${v.label.replace(' ','')}`;
-      if(selectedFormats.includes('TTF')  &&files.ttf)  download(files.ttf,  `${base}${suf}.ttf`,  'font/ttf');
-      if(selectedFormats.includes('WOFF') &&files.woff) download(files.woff, `${base}${suf}.woff`, 'font/woff');
-      if(selectedFormats.includes('WOFF2')&&files.woff2)download(files.woff2,`${base}${suf}.woff2`,'font/woff2');
+      if(files.ttf) download(files.ttf, `${base}${suf}.ttf`, 'font/ttf');
     }
   }
   async function restoreFromHistory(entry) {
@@ -241,7 +236,7 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
   const cssSnippet = fontFaceCSS(fontName, fontName.replace(/\s+/g,'-'),
     VARIANTS.filter(v=>selectedVariants.includes(v.id)).map(v=>({
       weight:v.weight, style:v.style,
-      filename:`${fontName.replace(/\s+/g,'-')}${v.id==='normal'?'':`-${v.label.replace(' ','')}`}`
+      filename:`${fontName.replace(/\s+/g,'-')}${v.id==='normal'?'':\`-\${v.label.replace(' ','')}\`}`
     })));
   const sliders = [
     { label:'Word space (px)', val:wordSpace, set:setWordSpace, min:100, max:600 },
@@ -275,15 +270,12 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
           ))}
         </div>
         <div style={S.card}>
-          <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Output Formats</h3>
-          {FORMATS.map(f=>(
-            <label key={f} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:9, cursor:'pointer' }}>
-              <input type="checkbox" checked={selectedFormats.includes(f)}
-                onChange={e=>setSelectedFormats(prev=>e.target.checked?[...prev,f]:prev.filter(x=>x!==f))} />
-              <span>{f}</span>
-              <span style={{ color:'var(--muted)', fontSize:'0.78rem' }}>{f==='TTF'?'universal':f==='WOFF'?'legacy web':'★ modern web'}</span>
-            </label>
-          ))}
+          <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Output Format</h3>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <span style={{ fontSize:'1.1rem' }}>✅</span>
+            <span style={{ fontWeight:600 }}>TTF</span>
+            <span style={{ color:'var(--muted)', fontSize:'0.82rem' }}>TrueType — works on Windows, Mac, Linux, Android, iOS & all browsers</span>
+          </div>
         </div>
         <div style={S.card}>
           <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Metrics & Spacing</h3>
@@ -330,7 +322,7 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
       {/* Generate */}
       <div style={{ margin:'20px 0', display:'flex', gap:12, alignItems:'center', flexWrap:'wrap' }}>
         <button onClick={generate}
-          disabled={busy||selectedVariants.length===0||selectedFormats.length===0||mappedEntries.length===0}
+          disabled={busy||selectedVariants.length===0||mappedEntries.length===0}
           className="btn-primary" style={{ padding:'12px 32px', fontSize:'1rem' }}>
           {busy ? <><span className="spinner" /> Building…</> : '⚡ Generate Fonts'}
         </button>
@@ -392,9 +384,8 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
                 <div key={v.id} style={{ background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 14px' }}>
                   <div style={{ marginBottom:8, fontWeight:v.weight==='bold'?700:400, fontStyle:v.style }}>{v.label}</div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                    {selectedFormats.includes('TTF')  &&files.ttf  &&<button onClick={()=>download(files.ttf,  `${base}${suf}.ttf`,  'font/ttf')}  style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>TTF</button>}
-                    {selectedFormats.includes('WOFF') &&files.woff &&<button onClick={()=>download(files.woff, `${base}${suf}.woff`, 'font/woff')} style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>WOFF</button>}
-                    {selectedFormats.includes('WOFF2')&&files.woff2&&<button onClick={()=>download(files.woff2,`${base}${suf}.woff2`,'font/woff2')}style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>WOFF2</button>}
+                    {files.ttf && <button onClick={()=>download(files.ttf, `${base}${suf}.ttf`, 'font/ttf')}
+                      style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>⬇ TTF</button>}
                   </div>
                 </div>
               );

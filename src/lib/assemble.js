@@ -99,19 +99,14 @@ export function toWoff(ttf) {
   return out.subarray(0, dataWritePos);
 }
 
-export async function toWoff2(ttf) {
-  const { compress } = await import('wawoff2');
-  return new Uint8Array(await compress(ttf));
-}
+// toWoff2 removed — wawoff2 WASM hangs in mobile browsers
 
 export function fontFaceCSS(name, baseName, variants) {
   // variants: array of {weight, style, filename}
   const faces = variants.map(v => [
     `@font-face {`,
     `  font-family: '${name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}';`,
-    `  src: url('${v.filename}.woff2') format('woff2'),`,
-    `       url('${v.filename}.woff') format('woff'),`,
-    `       url('${v.filename}.ttf') format('truetype');`,
+    `  src: url('${v.filename}.ttf') format('truetype');`,
     `  font-weight: ${v.weight};`,
     `  font-style: ${v.style};`,
     `  font-display: swap;`,

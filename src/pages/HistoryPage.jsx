@@ -62,15 +62,12 @@ export default function HistoryPage() {
   }
 
   function downloadAll(entry) {
-    const fmts = ['ttf', 'woff', 'woff2'];
     for (const [vId, vData] of Object.entries(entry.variants)) {
-      for (const fmt of fmts) {
-        const bytes = getFormatBytes(vData, fmt);
-        if (!bytes) continue;
-        const base   = entry.name.replace(/\s+/g, '-');
-        const suffix = vId === 'normal' ? '' : `-${VARIANT_LABELS[vId]?.replace(' ', '') ?? vId}`;
-        triggerDownload(b64ToUint8(bytes), `${base}${suffix}.${fmt}`, FORMAT_MIME[fmt]);
-      }
+      const bytes = getFormatBytes(vData, 'ttf');
+      if (!bytes) continue;
+      const base   = entry.name.replace(/\s+/g, '-');
+      const suffix = vId === 'normal' ? '' : `-${VARIANT_LABELS[vId]?.replace(' ', '') ?? vId}`;
+      triggerDownload(b64ToUint8(bytes), `${base}${suffix}.ttf`, 'font/ttf');
     }
   }
 
@@ -132,15 +129,9 @@ export default function HistoryPage() {
                     </div>
                     {/* Format badges */}
                     <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
-                      {['ttf','woff','woff2'].map(fmt => {
-                        const hasAny = variantIds.some(vId => getFormatBytes(entry.variants[vId], fmt));
-                        if (!hasAny) return null;
-                        return (
-                          <span key={fmt} style={{ fontSize: '0.7rem', padding: '2px 7px', borderRadius: 4, background: 'var(--surface)', border: '1px solid var(--border)', color: FORMAT_COLOR[fmt], fontWeight: 600 }}>
-                            {fmt.toUpperCase()}
-                          </span>
-                        );
-                      })}
+                        <span style={{ fontSize: '0.7rem', padding: '2px 7px', borderRadius: 4, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', fontWeight: 600 }}>
+                        TTF
+                      </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
@@ -162,7 +153,7 @@ export default function HistoryPage() {
                   <div>
                     {variantIds.map(vId => {
                       const vData = entry.variants[vId];
-                      const availFmts = ['ttf','woff','woff2'].filter(f => getFormatBytes(vData, f));
+                      const availFmts = getFormatBytes(vData, 'ttf') ? ['ttf'] : [];
                       if (availFmts.length === 0) return null;
                       return (
                         <div key={vId} style={S.variantRow}>
