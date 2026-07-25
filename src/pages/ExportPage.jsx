@@ -333,6 +333,14 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
     return () => clearTimeout(debounceRef.current);
   }, [wordSpace, lsb, rsb]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-size preview textarea on mount/remount and when font size changes
+  useEffect(() => {
+    const el = previewRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, [previewKey, previewSize]);
+
   // Persist prefs on every relevant state change
   useEffect(() => {
     savePrefs({ selectedVariants, previewText, previewSize, previewVariant, wordSpace, lsb, rsb });
@@ -464,21 +472,23 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
             </div>
           </div>
           <textarea key={previewKey} ref={previewRef} value={previewText}
-            onChange={e=>{ setPreviewText(e.target.value); }}
+            onChange={e=>{
+              const el = e.target;
+              el.style.height = 'auto';
+              el.style.height = el.scrollHeight + 'px';
+              setPreviewText(e.target.value);
+            }}
             onFocus={()=>{
               const el = previewRef.current; if (!el) return;
-              const r = el.getBoundingClientRect();
-              if (r.top < 0 || r.bottom > window.innerHeight) el.scrollIntoView({ behavior:'smooth', block:'center' });
+              el.style.height = 'auto';
+              el.style.height = el.scrollHeight + 'px';
             }}
-            onInput={()=>{
-              const el = previewRef.current; if (!el) return;
-              const r = el.getBoundingClientRect();
-              if (r.bottom > window.innerHeight || r.top < 0) el.scrollIntoView({ behavior:'smooth', block:'nearest' });
-            }}
-            style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:140,
-              background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:14, resize:'vertical' }} />
+            style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%',
+              minHeight: Math.max(140, previewSize * 1.45 * 3 + 28),
+              background:'#fff', color:'#111', border:'1px solid var(--border)',
+              borderRadius:8, padding:14, resize:'none', overflow:'hidden',
+              boxSizing:'border-box' }} />
           <p style={{ marginTop:6, color:'var(--muted)', fontSize:'0.75rem' }}>Characters not in your font fall back to system serif.</p>
-          <input type="text" value={previewText.split('\n')[0]} onChange={e=>setPreviewText(e.target.value)} placeholder="Preview text…" style={{ marginTop:8, fontSize:'0.86rem', width:'100%' }} />
         </div>
       )}
 
