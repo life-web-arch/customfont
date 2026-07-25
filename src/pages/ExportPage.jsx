@@ -388,5 +388,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         )}
       </div>
     </div>
+    </div>
   );
 }
