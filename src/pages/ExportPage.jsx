@@ -45,9 +45,11 @@ async function installFont(bytes, familyName, { weight='normal', style='normal' 
 
 function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=64, pathMap, cacheVersion }) {
   const canvasRef = useRef();
+  const containerRef = useRef();
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const containerW = containerRef.current?.clientWidth || 360;
     const ctx = canvas.getContext('2d');
     const H = size * 1.6;
     canvas.height = H;
@@ -63,7 +65,7 @@ function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=
     const chars = [...text];
     let totalW = 0;
     for (const c of chars) totalW += c === ' ' ? wordSpace * scale : ((charMap[c]?.advance ?? wordSpace/2) * scale);
-    canvas.width = Math.max(totalW + 16, 200);
+    canvas.width = Math.min(Math.max(totalW + 16, 200), containerW);
     ctx.clearRect(0, 0, canvas.width, H);
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, canvas.width, H);
@@ -86,7 +88,7 @@ function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=
       x += g.advance * scale;
     }
   }, [glyphs, mappings, wordSpace, lsb, rsb, text, size, pathMap, cacheVersion]);
-  return <canvas ref={canvasRef} style={{ display:'block', maxWidth:'100%', borderRadius:8, background:'#111', minHeight:size*1.6 }} />;
+  return <div ref={containerRef} style={{ width:'100%' }}><canvas ref={canvasRef} style={{ display:'block', width:'100%', borderRadius:8, background:'#111', minHeight:size*1.6 }} /></div>;
 }
 
 function loadHistory() {
