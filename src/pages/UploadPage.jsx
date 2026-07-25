@@ -13,7 +13,7 @@ export default function UploadPage({ onGlyphs, initialPreview }) {
   const [delta, setDelta]       = useState(40);
   const [preview, setPreview]   = useState(initialPreview ?? null);
   const [tipsOpen, setTipsOpen] = useState(false);
-  const [charSeq, setCharSeq]   = useState('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  const [charSeq, setCharSeq]   = useState('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,!?;:\'"()-@#&');
   const [autoAssign, setAutoAssign] = useState(true);
   const fileRef = useRef();
 
