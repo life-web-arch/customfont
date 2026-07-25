@@ -483,22 +483,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         </div>
       )}
 
-                                style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>
-                          ⬇ {fmt.toUpperCase()}
-                        </button>
-                      );
-                    })}
-                    <button onClick={()=>deleteEntry(entry.id)} style={{ padding:'5px 10px', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', borderRadius:6, color:'var(--danger)', fontSize:'0.82rem' }}>✕</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <p style={{ marginTop:14, fontSize:'0.78rem', color:'var(--muted)', lineHeight:1.6 }}>
-            ⚠ History is stored in browser localStorage on this device only. Clearing site data will erase it.
-          </p>
-        </div>
-      )}
 
       {/* Import & preview any font */}
       <div style={{ ...S.card }}>
