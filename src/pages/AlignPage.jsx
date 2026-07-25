@@ -2,327 +2,343 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { band, CAP, XH, DESC, ASC } from '../lib/metrics.js';
 
 const GUIDES = [
-  { y: ASC,  label: 'Asc',  color: '#475569', dash: [3,4] },
   { y: CAP,  label: 'Cap',  color: '#6366f1', dash: [4,3] },
   { y: XH,   label: 'x',    color: '#8b5cf6', dash: [4,3] },
   { y: 0,    label: 'Base', color: '#e0c97f', dash: [] },
   { y: DESC, label: 'Desc', color: '#f87171', dash: [4,3] },
 ];
 
-const GLYPH_W = 90;   // px per glyph cell on shared canvas
-const CELL_PAD = 12;  // px horizontal padding inside cell
-const CANVAS_H = 280; // px height of shared canvas
+const CELL_W   = 80;   // px per glyph slot
+const CANVAS_H = 320;  // px total canvas height
+const BASE_FAC = 0.70; // baseline at 70% down
+const CAP_FAC  = 0.58; // CAP fills 58% of canvas height
+
+// Extract only ink pixels from a glyph canvas (black on white)
+// Returns an offscreen canvas with transparent background, black ink only
+function extractInk(glyphCanvas) {
+  const sw = glyphCanvas.width, sh = glyphCanvas.height;
+  const tmp = document.createElement('canvas');
+  tmp.width = sw; tmp.height = sh;
+  const ctx = tmp.getContext('2d');
+  ctx.drawImage(glyphCanvas, 0, 0);
+  const id = ctx.getImageData(0, 0, sw, sh);
+  // Make white pixels transparent
+  for (let i = 0; i < id.data.length; i += 4) {
+    const r = id.data[i], g = id.data[i+1], b = id.data[i+2];
+    if (r > 200 && g > 200 && b > 200) {
+      id.data[i+3] = 0; // transparent
+    } else {
+      // Make ink white so it shows on dark bg
+      id.data[i]   = 240;
+      id.data[i+1] = 240;
+      id.data[i+2] = 240;
+      id.data[i+3] = 255;
+    }
+  }
+  ctx.putImageData(id, 0, 0);
+  return tmp;
+}
 
 export default function AlignPage({ glyphs, mappings, glyphOverrides, setGlyphOverrides, onNext }) {
-  const [selected, setSelected] = useState(null);
-  const [zoom, setZoom] = useState(1.0);
-  const sharedRef = useRef(null);
-  const dragRef = useRef(null);
-  const entriesRef = useRef([]);
+  const [selected, setSelected]   = useState(null);
+  const [zoom, setZoom]           = useState(1.0);
+  const [dragging, setDragging]   = useState(false);
+  const sharedRef   = useRef(null);
+  const wrapRef     = useRef(null);
+  const dragRef     = useRef(null);
+  const inkCache    = useRef({});
+  const hitRects    = useRef([]);
 
   const mappedEntries = Object.entries(mappings);
-  entriesRef.current = mappedEntries;
 
   function getOvr(idx) {
-    return glyphOverrides[idx] || { offsetY: 0, scaleX: 1, scaleY: 1 };
+    return glyphOverrides[+idx] || { offsetY: 0, scaleX: 1, scaleY: 1 };
   }
   function setOvr(idx, patch) {
-    setGlyphOverrides(prev => ({ ...prev, [idx]: { ...getOvr(idx), ...patch } }));
+    setGlyphOverrides(prev => ({ ...prev, [+idx]: { ...getOvr(+idx), ...patch } }));
   }
 
-  const sel = selected !== null
-    ? { idx: +selected, char: mappings[selected], ovr: getOvr(+selected), glyph: glyphs[+selected] }
-    : null;
+  // Get or build ink-only canvas for a glyph
+  function getInk(idxStr) {
+    const g = glyphs[+idxStr];
+    if (!g?.canvas) return null;
+    if (!inkCache.current[idxStr]) {
+      inkCache.current[idxStr] = extractInk(g.canvas);
+    }
+    return inkCache.current[idxStr];
+  }
 
-  // ── Draw the shared multi-glyph canvas ──────────────────────────────────────
+  // Invalidate ink cache when glyphs change
+  useEffect(() => { inkCache.current = {}; }, [glyphs]);
+
+  // ── Draw the shared canvas ──────────────────────────────────────────────────
   const drawShared = useCallback(() => {
     const canvas = sharedRef.current;
-    if (!canvas) return;
-    const entries = entriesRef.current;
-    const totalW = Math.max(600, entries.length * GLYPH_W + CELL_PAD * 2);
+    if (!canvas || mappedEntries.length === 0) return;
+
+    const totalW = Math.max(400, mappedEntries.length * CELL_W + 40);
     canvas.width  = totalW;
     canvas.height = CANVAS_H;
 
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, totalW, CANVAS_H);
 
-    // Background
-    ctx.fillStyle = '#0b1120';
+    // Dark background
+    ctx.fillStyle = '#0d1424';
     ctx.fillRect(0, 0, totalW, CANVAS_H);
 
-    // Coordinate system:
-    // baseline sits at 72% down the canvas
-    const baseY      = CANVAS_H * 0.72;
-    const pxPerUnit  = (CANVAS_H * 0.60) / CAP;  // CAP fills 60% of canvas height
+    const baseY     = CANVAS_H * BASE_FAC;
+    const pxPerUnit = (CANVAS_H * CAP_FAC) / CAP;
 
-    // Guide lines across full width
+    // Guide lines
     GUIDES.forEach(g => {
       const py = baseY - g.y * pxPerUnit;
       ctx.save();
-      ctx.strokeStyle = g.color + (g.y === 0 ? 'cc' : '66');
+      ctx.strokeStyle = g.color + (g.y === 0 ? 'dd' : '77');
       ctx.lineWidth   = g.y === 0 ? 1.5 : 1;
       ctx.setLineDash(g.dash);
       ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(totalW, py); ctx.stroke();
       ctx.restore();
-      // Label on left
       ctx.fillStyle = g.color + 'aa';
-      ctx.font = '10px monospace';
+      ctx.font = '9px monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(g.label, 4, py - 3);
+      ctx.fillText(g.label, 3, py - 3);
     });
 
+    // Reset hit rects
+    hitRects.current = [];
+
     // Draw each glyph
-    entries.forEach(([idxStr, char], colIdx) => {
-      const glyph = glyphs[+idxStr];
-      if (!glyph?.canvas) return;
-      const ovr = glyphOverrides[+idxStr] || { offsetY: 0, scaleX: 1, scaleY: 1 };
+    mappedEntries.forEach(([idxStr, char], col) => {
+      const ink = getInk(idxStr);
+      if (!ink) return;
+      const ovr = getOvr(+idxStr);
       const { offsetY = 0, scaleX = 1, scaleY = 1 } = ovr;
       const [bot, top] = band(char || 'A');
       const bandH = top - bot;
-      const isSelected = idxStr === String(selected);
+      const isSelected = String(idxStr) === String(selected);
 
-      const cellX = CELL_PAD + colIdx * GLYPH_W;
-      const cellW = GLYPH_W - CELL_PAD;
+      const cellX = 20 + col * CELL_W;
+      const cellW = CELL_W - 4;
 
-      // Cell highlight for selected
+      // Store hit rect
+      hitRects.current.push({ idxStr, x: cellX, w: cellW });
+
+      // Selection highlight — subtle vertical band
       if (isSelected) {
-        ctx.fillStyle = '#6366f120';
-        ctx.fillRect(cellX - 4, 0, cellW + 8, CANVAS_H);
-        ctx.strokeStyle = '#6366f166';
+        ctx.fillStyle = '#6366f118';
+        ctx.fillRect(cellX, 0, cellW, CANVAS_H);
+        ctx.strokeStyle = '#6366f155';
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
-        ctx.strokeRect(cellX - 4, 0, cellW + 8, CANVAS_H);
+        ctx.strokeRect(cellX, 0, cellW, CANVAS_H);
       }
 
-      // Draw glyph image
-      const gh = glyph.canvas.height, gw = glyph.canvas.width;
+      // Scale glyph to fit its typographic band
+      const gh = ink.height, gw = ink.width;
       const tgtH = bandH * pxPerUnit * scaleY;
       const tgtW = (gw / gh) * tgtH * scaleX;
       const dx = cellX + (cellW - tgtW) / 2;
-      const dy = baseY - (bot + bandH) * pxPerUnit * scaleY + offsetY;
+      // bottom of the glyph's band sits on baseline + bot offset
+      const dy = baseY - (bot * pxPerUnit) - tgtH + offsetY;
 
-      ctx.save();
-      ctx.globalAlpha = 0.92;
-      ctx.drawImage(glyph.canvas, dx, dy, tgtW, tgtH);
-      ctx.restore();
+      ctx.drawImage(ink, dx, dy, tgtW, tgtH);
 
-      // Char label below
-      ctx.fillStyle = isSelected ? '#e0c97f' : '#475569';
-      ctx.font = `${isSelected ? 'bold ' : ''}11px monospace`;
+      // Char label at bottom of cell
+      ctx.fillStyle = isSelected ? '#e0c97f' : '#334155';
+      ctx.font = `${isSelected ? 'bold ' : ''}10px monospace`;
       ctx.textAlign = 'center';
-      ctx.fillText(char || '?', cellX + cellW / 2, CANVAS_H - 6);
-
-      // Store hit rect for click detection
-      glyph._hitX = cellX - 4;
-      glyph._hitW = cellW + 8;
+      ctx.fillText(char || '?', cellX + cellW / 2, CANVAS_H - 5);
     });
   }, [glyphs, mappings, glyphOverrides, selected]);
 
-  // Redraw whenever anything changes
   useEffect(() => { drawShared(); }, [drawShared]);
 
-  // Click on shared canvas → select that glyph
-  function onCanvasClick(e) {
+  // ── Canvas interaction ──────────────────────────────────────────────────────
+  function canvasCoordX(e) {
     const rect = sharedRef.current.getBoundingClientRect();
-    const scaleRatio = sharedRef.current.width / rect.width;
-    const cx = (e.clientX - rect.left) * scaleRatio;
-    const entries = entriesRef.current;
-    for (let i = 0; i < entries.length; i++) {
-      const [idxStr, char] = entries[i];
-      const g = glyphs[+idxStr];
-      if (!g) continue;
-      if (cx >= g._hitX && cx <= g._hitX + g._hitW) {
-        setSelected(prev => prev === idxStr ? null : idxStr);
-        return;
-      }
+    const ratio = sharedRef.current.width / rect.width;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    return (clientX - rect.left) * ratio;
+  }
+  function canvasCoordY(e) {
+    const rect = sharedRef.current.getBoundingClientRect();
+    const ratio = sharedRef.current.height / rect.height;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return (clientY - rect.top) * ratio;
+  }
+  function hitTest(cx) {
+    for (const h of hitRects.current) {
+      if (cx >= h.x && cx <= h.x + h.w) return h.idxStr;
     }
-    setSelected(null);
+    return null;
   }
 
-  // Drag on the SIDE PANEL preview to move selected glyph vertically
-  const sideRef = useRef(null);
-  useEffect(() => {
-    if (!sel || !sideRef.current) return;
-    drawSidePreview(sideRef.current, sel.glyph, sel.char, sel.ovr);
-  }, [sel, selected, glyphOverrides]);
-
-  function drawSidePreview(canvas, glyph, char, ovr) {
-    if (!canvas || !glyph?.canvas) return;
-    const { offsetY = 0, scaleX = 1, scaleY = 1 } = ovr;
-    const [bot, top] = band(char || 'A');
-    const bandH = top - bot;
-    const cw = canvas.width, ch = canvas.height;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(0, 0, cw, ch);
-    const baseY = ch * 0.72;
-    const pxPerUnit = (ch * 0.60) / CAP;
-    GUIDES.forEach(g => {
-      ctx.strokeStyle = g.color + (g.y === 0 ? 'cc' : '66');
-      ctx.lineWidth = g.y === 0 ? 1.5 : 1;
-      ctx.setLineDash(g.dash);
-      const py = baseY - g.y * pxPerUnit;
-      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(cw, py); ctx.stroke();
-      ctx.fillStyle = g.color + '99';
-      ctx.font = '9px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(g.label, 3, py - 2);
-    });
-    ctx.setLineDash([]);
-    const gh = glyph.canvas.height, gw = glyph.canvas.width;
-    const tgtH = bandH * pxPerUnit * scaleY;
-    const tgtW = (gw / gh) * tgtH * scaleX;
-    const dx = (cw - tgtW) / 2;
-    const dy = baseY - (bot + bandH) * pxPerUnit * scaleY + offsetY;
-    ctx.globalAlpha = 0.93;
-    ctx.drawImage(glyph.canvas, dx, dy, tgtW, tgtH);
-    ctx.globalAlpha = 1;
-  }
-
-  // Drag to move on side preview
-  function onSideDown(e) {
+  function onCanvasPointerDown(e) {
     e.preventDefault();
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    dragRef.current = { startY: y, startOvr: sel?.ovr?.offsetY ?? 0 };
+    const cx = canvasCoordX(e);
+    const cy = canvasCoordY(e);
+    const hit = hitTest(cx);
+    if (!hit) { setSelected(null); return; }
+    setSelected(hit);
+    const curOvr = getOvr(+hit);
+    dragRef.current = {
+      idxStr: hit,
+      startClientY: e.touches ? e.touches[0].clientY : e.clientY,
+      startOffsetY: curOvr.offsetY,
+      moved: false,
+    };
   }
-  function onSideMove(e) {
-    if (!dragRef.current || !sel) return;
-    const y = e.touches ? e.touches[0].clientY : e.clientY;
-    setOvr(sel.idx, { offsetY: dragRef.current.startOvr + (y - dragRef.current.startY) });
+
+  function onCanvasPointerMove(e) {
+    if (!dragRef.current) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dy = clientY - dragRef.current.startClientY;
+    if (Math.abs(dy) > 3) dragRef.current.moved = true;
+    if (dragRef.current.moved) {
+      setDragging(true);
+      setOvr(+dragRef.current.idxStr, { offsetY: dragRef.current.startOffsetY + dy });
+    }
   }
-  function onSideUp() { dragRef.current = null; }
+
+  function onCanvasPointerUp(e) {
+    if (dragRef.current && !dragRef.current.moved) {
+      // It was a tap, not a drag — selection already set in pointerdown
+    }
+    dragRef.current = null;
+    setDragging(false);
+  }
+
+  const sel = selected !== null
+    ? { idx: +selected, char: mappings[selected], ovr: getOvr(+selected) }
+    : null;
 
   const sliderCfg = [
-    { label: 'Move up/down', key: 'offsetY', min: -120, max: 120, step: 1,    fmt: v => (v > 0 ? '+' : '') + v + 'px', def: 0 },
-    { label: 'Width',        key: 'scaleX',  min: 0.3,  max: 2.2, step: 0.01, fmt: v => (v*100).toFixed(0) + '%',       def: 1 },
-    { label: 'Height',       key: 'scaleY',  min: 0.3,  max: 2.2, step: 0.01, fmt: v => (v*100).toFixed(0) + '%',       def: 1 },
+    { label: 'Vertical offset', key: 'offsetY', min: -150, max: 150, step: 1,    fmt: v => (v>0?'+':'')+v+'px', def: 0 },
+    { label: 'Width %',         key: 'scaleX',  min: 0.2,  max: 2.5, step: 0.01, fmt: v => (v*100).toFixed(0)+'%', def: 1 },
+    { label: 'Height %',        key: 'scaleY',  min: 0.2,  max: 2.5, step: 0.01, fmt: v => (v*100).toFixed(0)+'%', def: 1 },
   ];
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px 16px' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '16px 14px' }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: 4 }}>Align Studio</h2>
-          <p style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>
-            All glyphs on a shared baseline — click any glyph to select and adjust it.
-            <span style={{ marginLeft: 8 }}>
-              <span style={{ color: '#6366f1' }}>■</span> Cap &nbsp;
-              <span style={{ color: '#8b5cf6' }}>■</span> x-height &nbsp;
-              <span style={{ color: '#e0c97f' }}>■</span> Baseline &nbsp;
-              <span style={{ color: '#f87171' }}>■</span> Descender
-            </span>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: 3 }}>Align Studio</h2>
+          <p style={{ color: 'var(--muted)', fontSize: '0.8rem', lineHeight: 1.5 }}>
+            All glyphs on a shared baseline.{' '}
+            <strong style={{ color: '#e0c97f', fontWeight: 400 }}>Tap</strong> to select ·{' '}
+            <strong style={{ color: '#e0c97f', fontWeight: 400 }}>Drag up/down</strong> to move directly on canvas.
+            Then fine-tune with sliders below.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={() => setGlyphOverrides({})}
-            style={{ padding: '6px 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, fontSize: '0.83rem', color: 'var(--text)' }}>
+            style={{ padding: '6px 12px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, fontSize: '0.82rem', color: 'var(--text)' }}>
             Reset All
           </button>
           <button onClick={onNext}
-            style={{ padding: '8px 20px', background: 'var(--accent2)', color: '#fff', borderRadius: 8, fontWeight: 700, fontSize: '0.9rem' }}>
+            style={{ padding: '7px 18px', background: 'var(--accent2)', color: '#fff', borderRadius: 8, fontWeight: 700, fontSize: '0.88rem' }}>
             Generate Font →
           </button>
         </div>
       </div>
 
-      {/* Zoom control */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <span style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>Zoom</span>
-        <input type="range" min={0.4} max={2.5} step={0.05} value={zoom}
-          onChange={e => setZoom(+e.target.value)} style={{ width: 120 }} />
-        <span style={{ color: 'var(--muted)', fontSize: '0.8rem', fontFamily: 'monospace', minWidth: 32 }}>{zoom.toFixed(1)}×</span>
-        {selected !== null && (
-          <span style={{ marginLeft: 16, color: 'var(--accent)', fontSize: '0.82rem' }}>
-            Selected: <strong style={{ fontFamily: 'monospace', fontSize: '1.1rem' }}>{mappings[selected]}</strong>
+      {/* Guide legend */}
+      <div style={{ display: 'flex', gap: 14, marginBottom: 10, flexWrap: 'wrap' }}>
+        {GUIDES.map(g => (
+          <span key={g.label} style={{ fontSize: '0.75rem', color: g.color, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ display: 'inline-block', width: 18, height: 2, background: g.color, borderRadius: 1 }} />
+            {g.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Zoom */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>Zoom</span>
+        <input type="range" min={0.3} max={3} step={0.05} value={zoom}
+          onChange={e => setZoom(+e.target.value)} style={{ width: 110 }} />
+        <span style={{ color: 'var(--muted)', fontSize: '0.78rem', fontFamily: 'monospace', minWidth: 30 }}>{zoom.toFixed(1)}×</span>
+        {sel && (
+          <span style={{ marginLeft: 10, color: 'var(--accent)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 700 }}>{sel.char}</span>
+            selected
             <button onClick={() => setSelected(null)}
-              style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8rem', padding: '0 4px' }}>✕ deselect</button>
+              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--muted)', cursor: 'pointer', fontSize: '0.75rem', padding: '1px 6px' }}>✕</button>
           </span>
         )}
       </div>
 
-      {/* Main layout: shared canvas + side panel */}
-      <div style={{ display: 'grid', gridTemplateColumns: sel ? '1fr 288px' : '1fr', gap: 20, alignItems: 'start' }}>
-
-        {/* Shared baseline canvas — scrollable */}
-        <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 12, background: '#0b1120' }}>
-          <div style={{ transformOrigin: 'top left', transform: `scale(${zoom})`,
-            width: `${100/zoom}%`, height: CANVAS_H * zoom }}>
-            <canvas ref={sharedRef}
-              onClick={onCanvasClick}
-              style={{ display: 'block', cursor: 'pointer', imageRendering: 'pixelated' }} />
-          </div>
+      {/* Shared canvas — horizontally scrollable, zoomable */}
+      <div ref={wrapRef} style={{
+        overflowX: 'auto', overflowY: 'hidden',
+        border: '1px solid var(--border)', borderRadius: 10,
+        marginBottom: 16, background: '#0d1424',
+        cursor: dragging ? 'ns-resize' : 'pointer',
+        WebkitOverflowScrolling: 'touch',
+      }}>
+        <div style={{ transformOrigin: 'top left', transform: `scale(${zoom})`,
+          width: `${100/zoom}%`,
+          height: CANVAS_H * zoom,
+          minWidth: mappedEntries.length * CELL_W + 40,
+        }}>
+          <canvas ref={sharedRef}
+            onMouseDown={onCanvasPointerDown}
+            onMouseMove={onCanvasPointerMove}
+            onMouseUp={onCanvasPointerUp}
+            onMouseLeave={onCanvasPointerUp}
+            onTouchStart={onCanvasPointerDown}
+            onTouchMove={onCanvasPointerMove}
+            onTouchEnd={onCanvasPointerUp}
+            style={{ display: 'block', touchAction: 'pan-x' }}
+          />
         </div>
+      </div>
 
-        {/* Side panel for selected glyph */}
-        {sel && (
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 16, position: 'sticky', top: 80 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ fontSize: '0.95rem', margin: 0 }}>
-                <span style={{ color: 'var(--accent)', fontFamily: 'monospace', fontSize: '1.5rem' }}>{sel.char}</span>
-                <span style={{ color: 'var(--muted)', fontSize: '0.75rem', marginLeft: 6 }}>glyph #{sel.idx + 1}</span>
-              </h3>
-              <button onClick={() => setSelected(null)}
-                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1 }}>✕</button>
-            </div>
-
-            {/* Side preview — drag to shift vertically */}
-            <div style={{ userSelect: 'none', cursor: 'ns-resize', touchAction: 'none', marginBottom: 6 }}
-              onMouseDown={onSideDown} onMouseMove={onSideMove} onMouseUp={onSideUp} onMouseLeave={onSideUp}
-              onTouchStart={onSideDown} onTouchMove={onSideMove} onTouchEnd={onSideUp}>
-              <canvas ref={sideRef} width={256} height={180}
-                style={{ display: 'block', width: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
-            </div>
-            <p style={{ color: 'var(--muted)', fontSize: '0.72rem', textAlign: 'center', marginBottom: 14 }}>
-              ↕ Drag to move · changes reflect on shared canvas
-            </p>
-
-            {sliderCfg.map(({ label, key, min, max, step, fmt, def }) => (
-              <div key={key} style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>{label}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text)' }}>
-                    {fmt(sel.ovr[key] ?? def)}
-                  </span>
-                </div>
-                <input type="range" min={min} max={max} step={step}
-                  value={sel.ovr[key] ?? def}
-                  onChange={e => setOvr(sel.idx, { [key]: +e.target.value })}
-                  style={{ width: '100%' }} />
-              </div>
-            ))}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+      {/* Slider panel — only shows when a glyph is selected */}
+      {sel && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <span style={{ fontSize: '0.9rem' }}>
+              Fine-tune <span style={{ fontFamily: 'monospace', fontSize: '1.3rem', color: 'var(--accent)' }}>{sel.char}</span>
+              <span style={{ color: 'var(--muted)', fontSize: '0.75rem', marginLeft: 6 }}>glyph #{sel.idx + 1}</span>
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setOvr(sel.idx, { offsetY: 0, scaleX: 1, scaleY: 1 })}
-                style={{ flex: 1, padding: '6px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, fontSize: '0.8rem', color: 'var(--muted)', cursor: 'pointer' }}>
-                Reset glyph
+                style={{ padding: '4px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.78rem', color: 'var(--muted)', cursor: 'pointer' }}>
+                Reset
               </button>
-              <button
-                onClick={() => {
-                  const entries = entriesRef.current;
-                  const cur = entries.findIndex(([k]) => k === String(selected));
-                  const next = entries[cur + 1];
-                  if (next) setSelected(next[0]);
-                }}
-                style={{ flex: 1, padding: '6px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 7, fontSize: '0.8rem', color: 'var(--text)', cursor: 'pointer' }}>
+              <button onClick={() => {
+                const cur = mappedEntries.findIndex(([k]) => k === String(selected));
+                const next = mappedEntries[cur + 1];
+                if (next) setSelected(next[0]);
+              }} style={{ padding: '4px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: '0.78rem', color: 'var(--text)', cursor: 'pointer' }}>
                 Next →
               </button>
             </div>
           </div>
-        )}
-      </div>
-
-      {mappedEntries.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--muted)' }}>
-          No mapped glyphs yet — go to <strong>Map Glyphs</strong> first.
+          {sliderCfg.map(({ label, key, min, max, step, fmt, def }) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <span style={{ color: 'var(--muted)', fontSize: '0.8rem', minWidth: 100 }}>{label}</span>
+              <input type="range" min={min} max={max} step={step}
+                value={sel.ovr[key] ?? def}
+                onChange={e => setOvr(sel.idx, { [key]: +e.target.value })}
+                style={{ flex: 1 }} />
+              <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', minWidth: 42, textAlign: 'right', color: 'var(--text)' }}>
+                {fmt(sel.ovr[key] ?? def)}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
-      <p style={{ color: 'var(--muted)', fontSize: '0.78rem', marginTop: 14 }}>
-        Tip: type a full word in the preview text on the Export page to check spacing after generating.
-      </p>
+      {mappedEntries.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--muted)' }}>
+          No mapped glyphs — go to <strong>Map Glyphs</strong> first.
+        </div>
+      )}
     </div>
   );
 }
