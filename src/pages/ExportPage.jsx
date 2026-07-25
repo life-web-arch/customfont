@@ -395,8 +395,16 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           </div>
           <textarea key={previewKey} ref={previewRef} value={previewText}
             onChange={e=>{ setPreviewText(e.target.value); }}
-            onFocus={()=>{ previewRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }}
-            onClick={()=>{ previewRef.current?.scrollIntoView({ behavior:'smooth', block:'nearest' }); }}
+            onFocus={()=>{
+              const el = previewRef.current; if (!el) return;
+              const r = el.getBoundingClientRect();
+              if (r.top < 0 || r.bottom > window.innerHeight) el.scrollIntoView({ behavior:'smooth', block:'center' });
+            }}
+            onInput={()=>{
+              const el = previewRef.current; if (!el) return;
+              const r = el.getBoundingClientRect();
+              if (r.bottom > window.innerHeight || r.top < 0) el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+            }}
             style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:140,
               background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:14, resize:'vertical' }} />
           <p style={{ marginTop:6, color:'var(--muted)', fontSize:'0.75rem' }}>Characters not in your font fall back to system serif.</p>
