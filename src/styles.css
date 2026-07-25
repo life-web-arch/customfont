@@ -137,25 +137,25 @@ main > div { animation: fadeInUp .35s var(--ease) both; }
   filter: drop-shadow(0 0 6px rgba(224,201,127,0.5));
   animation: brandSlideIn .5s var(--ease) both;
 }
-.brand-text { display: flex; align-items: baseline; gap: 5px; }
-.brand-word { display: inline-block; -webkit-background-clip: text; background-clip: text; color: transparent; }
-.brand-custom { background: linear-gradient(135deg, #e0c97f, #f5dfa0); animation: brandSlideIn .4s var(--ease) .05s both; }
-.brand-font { background: linear-gradient(135deg, #a78bfa, #c4b5fd); font-size: 1.18rem; animation: brandSlideIn .4s var(--ease) .12s both; }
+.brand-text { display: flex; align-items: center; gap: 5px; }
+.brand-word { display: inline-block; animation: brandSlideIn .4s var(--ease) both; }
+.brand-custom { color: #e0c97f; animation-delay: .05s; }
+.brand-font { color: #c4b5fd; font-size: 1.18rem; animation-delay: .12s; }
 .brand-studio {
-  animation: brandSlideIn .4s var(--ease) .2s both, brandShimmer 4s ease infinite 0.6s;
+  color: #c4b5fd;
   background: linear-gradient(270deg, #e0c97f, #a78bfa, #f472b6, #e0c97f);
   background-size: 300% 300%;
-  letter-spacing: 0.04em;
+  animation: brandSlideIn .4s var(--ease) .2s both, brandShimmer 4s ease infinite 0.6s;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  font-size: 0.75em;
-  padding: 2px 6px;
-  border: 1px solid rgba(167,139,250,0.35);
+  font-size: 0.7em;
+  font-weight: 700;
+  padding: 2px 7px;
+  border: 1px solid rgba(167,139,250,0.4);
   border-radius: 4px;
   -webkit-background-clip: unset;
   background-clip: unset;
-  color: #c4b5fd;
-  font-weight: 700;
-  text-shadow: 0 0 12px rgba(167,139,250,0.6);
+  text-shadow: 0 0 10px rgba(167,139,250,0.5);
 }
 .footer-heart {
   display: inline-block;
