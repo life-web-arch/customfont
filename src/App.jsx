@@ -61,7 +61,7 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <span>Custom Font Studio — MIT License</span>
+        <span>Made with 💙 by BM</span>
         <a href="https://github.com/life-web-arch/customfont" target="_blank" rel="noreferrer">GitHub</a>
       </footer>
     </div>

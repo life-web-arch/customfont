@@ -28,7 +28,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
   const [activeGroup, setActiveGroup] = useState(0);
   const [search, setSearch] = useState('');
   const [customChar, setCustomChar] = useState('');
-  const [zoom, setZoom] = useState(80);
+  const [zoom, setZoom] = useState(40);
 
   const mapped = Object.keys(mappings).length;
   const total = glyphs.length;
@@ -95,7 +95,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
           display: 'grid',
           gridTemplateColumns: `repeat(auto-fill, minmax(${zoom}px, 1fr))`,
           gap: 8,
-          maxHeight: 'calc(100dvh - 260px)',
+          maxHeight: '480px',
           overflowY: 'auto',
           paddingRight: 4,
         }}>
