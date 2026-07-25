@@ -82,6 +82,8 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const [importStatus, setImportStatus]     = useState('');
   const [showPrivacy, setShowPrivacy]       = useState(false);
   const [copiedCSS, setCopiedCSS]           = useState(false);
+  const [copiedPrompt, setCopiedPrompt]     = useState(false);
+  const [showPrompt, setShowPrompt]         = useState(false);
   const fontFaceRef    = useRef({});
   const fontSeqRef     = useRef(0);
   const mappedEntries = Object.entries(mappings);
@@ -199,6 +201,37 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       weight:v.weight, style:v.style,
       filename:fontName.replace(/\s+/g,'-')+(v.id==='normal'?'':'-'+v.label.replace(' ',''))
     })));
+  const base = fontName.replace(/\s+/g,'-');
+  const variantLabels = VARIANTS.filter(v=>selectedVariants.includes(v.id)).map(v=>v.label).join(', ');
+  const variantFiles = VARIANTS.filter(v=>selectedVariants.includes(v.id))
+    .map(v=>`${base}${v.id==='normal'?'':'-'+v.label.replace(' ','')}.ttf (${v.label})`).join('\n- ');
+  const vibePrompt = [
+    `I have a custom handmade font called "${fontName || 'MyFont'}" generated using customfont.vercel.app, exported as TTF format.`,
+    ``,
+    `I will attach the font file(s) here. If the font file is absent, please ask me explicitly for it before proceeding further.`,
+    ``,
+    `Font file(s):`,
+    `- ${variantFiles || base+'.ttf (Normal)'}`,
+    ``,
+    `== STEP 1: Host the font ==`,
+    `Give me exact steps to upload the font file(s) to our project's GitHub repository (e.g. in /public/fonts/ or /assets/fonts/), unless I specify another hosting method.`,
+    ``,
+    `== STEP 2: CSS @font-face ==`,
+    `Use this exact CSS to register the font in our project:`,
+    ``,
+    cssSnippet,
+    ``,
+    `== STEP 3: Where to use it ==`,
+    `- First ask me about our project: what it is, the tech stack (React/Next/Vue/plain HTML etc.), and the key UI sections.`,
+    `- Then suggest SPECIFICALLY where to use this font — e.g. hero heading, nav brand, section titles, buttons, body text, captions — not just "use it everywhere".`,
+    `- For each placement suggest: font-size, font-weight (normal/bold), font-style (normal/italic), and letter-spacing.`,
+    `- Available variants: ${variantLabels || 'Normal'}. Match each variant to the right UI element.`,
+    `- Suggest a good fallback font stack after "${fontName || 'MyFont'}" (e.g. Georgia, serif).`,
+    ``,
+    `== STEP 4: Implementation ==`,
+    `Ask me the framework/stack if unsure, then provide the actual CSS classes or component code to apply the font with the sizes and variants you recommended.`,
+  ].join('\n');
+
   const sliders = [
     { label:'Word space (px)', val:wordSpace, set:setWordSpace, min:100, max:600 },
     { label:'Left bearing',    val:lsb,       set:setLsb,       min:0,   max:200 },
@@ -265,6 +298,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
             </div>
           </div>
         ))}
+      </div>
 
       {/* Variant selector — controls Live Font Preview */}
       {hasResults && Object.keys(results).length > 1 && (
@@ -300,10 +334,8 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           <textarea value={previewText} onChange={e=>setPreviewText(e.target.value)}
             style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:140,
               background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:14, resize:'vertical' }} />
-          <p style={{ marginTop:6, color:'var(--muted)', fontSize:'0.75rem' }}>
-            Characters not in your font fall back to system serif.
-          <input type="text" value={previewText.split("\n")[0]} onChange={e=>setPreviewText(e.target.value)} placeholder="Preview textu2026" style={{ marginTop:8, fontSize:"0.86rem", width:"100%" }} />
-          </p>
+          <p style={{ marginTop:6, color:'var(--muted)', fontSize:'0.75rem' }}>Characters not in your font fall back to system serif.</p>
+          <input type="text" value={previewText.split('\n')[0]} onChange={e=>setPreviewText(e.target.value)} placeholder="Preview text…" style={{ marginTop:8, fontSize:'0.86rem', width:'100%' }} />
         </div>
       )}
 
@@ -371,6 +403,31 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       )}
 
 
+      {/* Vibe Coding Prompt */}
+      {hasResults && (
+        <div style={{ ...S.card }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10, flexWrap:'wrap', gap:8 }}>
+            <div>
+              <h3 style={{ fontSize:'1rem', marginBottom:2 }}>🤖 Vibe Coding Prompt</h3>
+              <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Copy this prompt and paste it to Claude, Gemini, ChatGPT or any AI coding agent</p>
+            </div>
+            <button onClick={()=>setShowPrompt(p=>!p)}
+              style={{ padding:'6px 14px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:6, fontSize:'0.84rem', color:'var(--text)', cursor:'pointer' }}>
+              {showPrompt ? 'Hide' : 'Show Prompt'}
+            </button>
+          </div>
+          {showPrompt && (
+            <>
+              <pre style={{ fontFamily:'var(--font-mono)', fontSize:'0.75rem', background:'var(--surface2)', padding:14, borderRadius:8, overflowX:'auto', lineHeight:1.6, color:'var(--text)', whiteSpace:'pre-wrap', maxHeight:320, overflowY:'auto' }}>{vibePrompt}</pre>
+              <button onClick={()=>{ navigator.clipboard.writeText(vibePrompt); setCopiedPrompt(true); setTimeout(()=>setCopiedPrompt(false),2000); }}
+                style={{ marginTop:8, padding:'6px 16px', background: copiedPrompt ? 'var(--success)' : 'var(--accent2)', color:'#fff', borderRadius:6, fontSize:'0.84rem', fontWeight:600, cursor:'pointer' }}>
+                {copiedPrompt ? '✅ Copied!' : '📋 Copy Prompt'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Import & preview any font */}
       <div style={{ ...S.card }}>
         <h3 style={{ fontSize:'1rem', marginBottom:4 }}>Import & Preview a Font File</h3>
@@ -388,7 +445,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
             style={{ marginTop:14, fontFamily:`${importedFamily}, serif`, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:100, background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:12, resize:'vertical' }} />
         )}
       </div>
-    </div>
     </div>
   );
 }
