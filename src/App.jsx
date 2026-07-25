@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import UploadPage from './pages/UploadPage.jsx';
+import CropReviewPage from './pages/CropReviewPage.jsx';
 import MappingPage from './pages/MappingPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
 import HelpPage from './pages/HelpPage.jsx';
@@ -97,6 +98,8 @@ export default function App() {
   const [preview, setPreview]   = useState(null);   // upload preview dataURL
   const [hydrated, setHydrated] = useState(false);  // wait for session restore
   const [showClear, setShowClear] = useState(false);
+  const [pendingGlyphs, setPendingGlyphs] = useState(null);  // awaiting crop review
+  const [pendingMeta, setPendingMeta] = useState(null);      // {dataUrl, chars, mode}
   const fontNameInputRef = useRef(null);
 
   // Restore session on mount
@@ -139,32 +142,42 @@ export default function App() {
     localStorage.removeItem(SESSION_KEY);
   }
 
+  // Called by UploadPage after segmentation — show crop review first
   const handleGlyphs = React.useCallback((g, dataUrl, chars=[], mode='fresh') => {
+    setPendingGlyphs(g);
+    setPendingMeta({ dataUrl, chars, mode });
+    setPreview(dataUrl);
+  }, []);
+
+  // Called by CropReviewPage after user confirms/adjusts crops
+  const handleCropConfirm = React.useCallback((adjustedGlyphs) => {
+    const { dataUrl, chars, mode } = pendingMeta;
+    setPendingGlyphs(null); setPendingMeta(null);
     if (mode === 'append') {
       setGlyphs(prev => {
         const offset = prev.length;
         if (chars.length) {
           setMappings(m => {
             const nm = { ...m };
-            g.forEach((_, i) => { if (chars[i]) nm[offset + i] = chars[i]; });
+            adjustedGlyphs.forEach((_, i) => { if (chars[i]) nm[offset + i] = chars[i]; });
             return nm;
           });
         }
-        return [...prev, ...g];
+        return [...prev, ...adjustedGlyphs];
       });
       setTab(1);
     } else {
-      setGlyphs(g);
+      setGlyphs(adjustedGlyphs);
       if (chars.length) {
         const m = {};
-        g.forEach((_, i) => { if (chars[i]) m[i] = chars[i]; });
+        adjustedGlyphs.forEach((_, i) => { if (chars[i]) m[i] = chars[i]; });
         setMappings(m);
       } else {
         setMappings({});
       }
       setPreview(dataUrl); setTab(1);
     }
-  }, []);
+  }, [pendingMeta]);
 
   const canMap    = glyphs.length > 0;
   const canExport = canMap && Object.keys(mappings).length > 0;
@@ -224,11 +237,16 @@ export default function App() {
       </header>
 
       <main>
-        {tab === 0 && <UploadPage
+        {tab === 0 && !pendingGlyphs && <UploadPage
           initialPreview={preview}
           hasGlyphs={glyphs.length > 0}
           onStartFresh={resetForFreshUpload}
           onGlyphs={handleGlyphs} />}
+        {tab === 0 && pendingGlyphs && <CropReviewPage
+          imageUrl={pendingMeta?.dataUrl}
+          glyphs={pendingGlyphs}
+          onConfirm={handleCropConfirm}
+          onBack={() => { setPendingGlyphs(null); setPendingMeta(null); }} />}
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings}
           onDone={() => { setTab(2); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
         {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName}
