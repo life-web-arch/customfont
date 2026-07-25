@@ -13,26 +13,24 @@ const CANVAS_H = 320;  // px total canvas height
 const BASE_FAC = 0.70; // baseline at 70% down
 const CAP_FAC  = 0.58; // CAP fills 58% of canvas height
 
-// Extract only ink pixels from a glyph canvas (black on white)
-// Returns an offscreen canvas with transparent background, black ink only
-function extractInk(glyphCanvas) {
+// Extract ink as transparent-bg canvas, ink recolored to chosen color
+function extractInk(glyphCanvas, inkColor = [240, 240, 240]) {
   const sw = glyphCanvas.width, sh = glyphCanvas.height;
   const tmp = document.createElement('canvas');
   tmp.width = sw; tmp.height = sh;
   const ctx = tmp.getContext('2d');
   ctx.drawImage(glyphCanvas, 0, 0);
   const id = ctx.getImageData(0, 0, sw, sh);
-  // Make white pixels transparent
+  const [ir, ig, ib] = inkColor;
   for (let i = 0; i < id.data.length; i += 4) {
-    const r = id.data[i], g = id.data[i+1], b = id.data[i+2];
-    if (r > 200 && g > 200 && b > 200) {
-      id.data[i+3] = 0; // transparent
+    const brightness = (id.data[i] + id.data[i+1] + id.data[i+2]) / 3;
+    if (brightness > 180) {
+      id.data[i+3] = 0;           // white/near-white → fully transparent
     } else {
-      // Make ink white so it shows on dark bg
-      id.data[i]   = 240;
-      id.data[i+1] = 240;
-      id.data[i+2] = 240;
-      id.data[i+3] = 255;
+      id.data[i]   = ir;
+      id.data[i+1] = ig;
+      id.data[i+2] = ib;
+      id.data[i+3] = Math.round((1 - brightness / 180) * 255); // soft edges
     }
   }
   ctx.putImageData(id, 0, 0);
