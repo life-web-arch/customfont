@@ -65,14 +65,21 @@ function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=
     const chars = [...text];
     let totalW = 0;
     for (const c of chars) totalW += c === ' ' ? wordSpace * scale : ((charMap[c]?.advance ?? wordSpace/2) * scale);
-    canvas.width = Math.min(Math.max(totalW + 16, 200), containerW);
-    ctx.clearRect(0, 0, canvas.width, H);
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = Math.min(Math.max(totalW + 16, 200), containerW);
+    const cssH = H;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, cssW, cssH);
     ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, canvas.width, H);
+    ctx.fillRect(0, 0, cssW, cssH);
     const baseline = size * 1.1;
     ctx.strokeStyle = 'rgba(224,201,127,0.18)';
     ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, baseline); ctx.lineTo(canvas.width, baseline); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, baseline); ctx.lineTo(cssW, baseline); ctx.stroke();
     let x = 8;
     ctx.fillStyle = '#e8e6f0';
     for (const c of chars) {
@@ -88,7 +95,7 @@ function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=
       x += g.advance * scale;
     }
   }, [glyphs, mappings, wordSpace, lsb, rsb, text, size, pathMap, cacheVersion]);
-  return <div ref={containerRef} style={{ width:'100%' }}><canvas ref={canvasRef} style={{ display:'block', width:'100%', borderRadius:8, background:'#111', minHeight:size*1.6 }} /></div>;
+  return <div ref={containerRef} style={{ width:'100%' }}><canvas ref={canvasRef} style={{ display:'block', borderRadius:8, background:'#111' }} /></div>;
 }
 
 function loadHistory() {
