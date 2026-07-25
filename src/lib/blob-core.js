@@ -55,10 +55,10 @@ export function mergeParts(boxes) {
         const bothTiny = a.y1 - a.y0 < 0.5 * medH && b.y1 - b.y0 < 0.5 * medH;
         const vOvl = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) + 1;
         const oneSmall = Math.min(a.y1 - a.y0, b.y1 - b.y0) + 1 < 0.5 * medH;
-        const stacked = oneSmall && hOvl > 0.5 * minW && vGap < 0.8 * medH;
+        const stacked = oneSmall && hOvl > 0.3 * minW && vGap < 1.5 * medH;
         const sideBySideMarks = bothTiny && vOvl > 0 && hGap < 0.3 * medH;
         const unionW = Math.max(a.x1, b.x1) - Math.min(a.x0, b.x0) + 1;
-        const splitStroke = hOvl > 0 && vOvl >= 0.6 * Math.min(a.y1 - a.y0 + 1, b.y1 - b.y0 + 1) && unionW <= 1.6 * medH;
+        const splitStroke = hOvl > 0 && vOvl >= 0.4 * Math.min(a.y1 - a.y0 + 1, b.y1 - b.y0 + 1) && unionW <= 2.5 * medH;
         if (stacked || sideBySideMarks || splitStroke) {
           const dist = vGap + hGap;
           if (!best || dist < best.dist) best = { i, j, dist };
