@@ -600,7 +600,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         {importStatus && <p style={{ marginTop:10, fontSize:'0.85rem', color:importStatus.startsWith('ok')?'var(--success)':importStatus.startsWith('err')?'var(--danger)':'var(--muted)' }}>{importStatus}</p>}
         {importedFamily && (
           <textarea defaultValue="Type here to preview the imported font…"
-            style={{ marginTop:14, fontFamily:`${importedFamily}, serif`, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:100, background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, paddingTop: Math.max(12, previewSize * 0.3), paddingBottom:12, paddingLeft:12, paddingRight:12, resize:'vertical' }} />
+            style={{ marginTop:14, fontFamily:`${importedFamily}, serif`, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:100, background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:12, resize:'vertical' }} />
         )}
       </div>
     </div>

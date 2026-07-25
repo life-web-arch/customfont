@@ -26,7 +26,9 @@ export function buildTTF(name, glyphs, { wordSpace=300, weight='normal', style='
   const ttf = svg2ttf(parts.join('\n'), {
     description: `Made with Custom Font Studio`,
     url: 'https://customfont.vercel.app',
-    copyright: 'Your font. 100% yours.'
+    copyright: 'Your font. 100% yours.',
+    ascent: 1050,
+    descent: -350,
   });
   return new Uint8Array(ttf.buffer);
 }
