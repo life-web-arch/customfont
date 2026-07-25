@@ -191,7 +191,17 @@ export default function App() {
       <main>
         {tab === 0 && <UploadPage
           initialPreview={preview}
-          onGlyphs={(g, dataUrl) => { setGlyphs(g); setMappings({}); setPreview(dataUrl); setTab(1); }} />}
+          onGlyphs={(g, dataUrl, chars=[]) => {
+            setGlyphs(g);
+            if (chars.length) {
+              const m = {};
+              g.forEach((_, i) => { if (chars[i]) m[i] = chars[i]; });
+              setMappings(m);
+            } else {
+              setMappings({});
+            }
+            setPreview(dataUrl); setTab(1);
+          }} />}
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings}
           onDone={() => { setTab(2); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
         {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName}

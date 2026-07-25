@@ -13,6 +13,8 @@ export default function UploadPage({ onGlyphs, initialPreview }) {
   const [delta, setDelta]       = useState(40);
   const [preview, setPreview]   = useState(initialPreview ?? null);
   const [tipsOpen, setTipsOpen] = useState(false);
+  const [charSeq, setCharSeq]   = useState('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  const [autoAssign, setAutoAssign] = useState(true);
   const fileRef = useRef();
 
   const handleFile = useCallback(async (file) => {
@@ -42,7 +44,8 @@ export default function UploadPage({ onGlyphs, initialPreview }) {
         return;
       }
       setStatus(`Found ${result.length} glyph${result.length !== 1 ? 's' : ''} — proceed to Map Glyphs`);
-      onGlyphs(result, dataUrl);
+      const chars = [...charSeq.trim()].filter((c,i,a)=>a.indexOf(c)===i); // unique chars in order
+      onGlyphs(result, dataUrl, autoAssign ? chars : []);
     } catch (e) { setStatus('Error: ' + e.message); }
     setBusy(false);
   }, [delta, onGlyphs]);
@@ -88,6 +91,38 @@ export default function UploadPage({ onGlyphs, initialPreview }) {
           <img src={preview} alt="Uploaded" style={{ maxWidth:'100%', maxHeight:300, borderRadius:8, border:'1px solid var(--border)' }} />
         </div>
       )}
+
+      {/* Auto-assign sequence */}
+      <div style={{ marginBottom:20, padding:16, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--radius)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, flexWrap:'wrap', gap:8 }}>
+          <div>
+            <div style={{ fontWeight:600, fontSize:'0.92rem', marginBottom:2 }}>Auto-assign characters</div>
+            <div style={{ fontSize:'0.8rem', color:'var(--muted)' }}>Type the characters in the same order you wrote them — each glyph gets assigned automatically. You can remap any of them after.</div>
+          </div>
+          <label style={{ display:'flex', alignItems:'center', gap:7, cursor:'pointer', flexShrink:0 }}>
+            <span style={{ fontSize:'0.82rem', color:'var(--muted)' }}>{autoAssign ? 'On' : 'Off'}</span>
+            <div onClick={()=>setAutoAssign(a=>!a)} style={{
+              width:38, height:22, borderRadius:11, cursor:'pointer', transition:'background .2s', flexShrink:0,
+              background: autoAssign ? 'var(--accent2)' : 'var(--border)', position:'relative' }}>
+              <div style={{ position:'absolute', top:3, left: autoAssign?18:3, width:16, height:16,
+                borderRadius:'50%', background:'#fff', transition:'left .2s' }} />
+            </div>
+          </label>
+        </div>
+        {autoAssign && (
+          <input
+            value={charSeq}
+            onChange={e=>setCharSeq(e.target.value)}
+            placeholder="e.g. ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+            style={{ width:'100%', fontFamily:'var(--font-mono)', fontSize:'0.9rem', letterSpacing:'0.05em' }}
+          />
+        )}
+        {autoAssign && charSeq.trim() && (
+          <div style={{ marginTop:6, fontSize:'0.75rem', color:'var(--muted)' }}>
+            {[...new Set([...charSeq.trim()])].length} unique character{[...new Set([...charSeq.trim()])].length!==1?'s':''} will be assigned
+          </div>
+        )}
+      </div>
 
       {/* Ink sensitivity */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:16, marginBottom:24 }}>
