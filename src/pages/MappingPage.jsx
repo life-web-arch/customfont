@@ -80,7 +80,7 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
 
   const usedChars = new Set(Object.values(mappings));
 
-  return (
+  return (<>
     <div className="mapping-layout">
       {/* Left: Glyph Grid */}
       <div>
@@ -270,5 +270,5 @@ export default function MappingPage({ glyphs, mappings, setMappings, onDone }) {
           </div>
         </div>
       )}
-  );
+  </>);
 }
