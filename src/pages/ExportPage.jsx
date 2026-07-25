@@ -43,7 +43,7 @@ async function installFont(bytes, familyName, { weight='normal', style='normal' 
   return familyName;
 }
 
-function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=64, pathMap }) {
+function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=64, pathMap, cacheVersion }) {
   const canvasRef = useRef();
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -85,7 +85,7 @@ function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=
       ctx.restore();
       x += g.advance * scale;
     }
-  }, [glyphs, mappings, wordSpace, lsb, rsb, text, size, pathMap]);
+  }, [glyphs, mappings, wordSpace, lsb, rsb, text, size, pathMap, cacheVersion]);
   return <canvas ref={canvasRef} style={{ display:'block', maxWidth:'100%', borderRadius:8, background:'#111', minHeight:size*1.6 }} />;
 }
 
@@ -131,6 +131,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const fontFaceRef    = useRef({});
   const fontSeqRef     = useRef(0);
   const cachedPathsRef = useRef({}); // { variantId: { char: path } }
+  const [cachedPathsVersion, setCachedPathsVersion] = useState(0); // bumped after each build to trigger re-render
   const mappedEntries = Object.entries(mappings);
 
   async function buildVariant(variant) {
@@ -181,6 +182,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         const pathMap = {};
         for (const bg of builtGlyphs) pathMap[bg.char] = bg.d;
         cachedPathsRef.current[vId] = pathMap;
+        setCachedPathsVersion(v => v + 1); // trigger canvas re-render
         // TTF only — no WOFF/WOFF2 conversion
         const fName = `cfprev-${fontName}-${vId}-${++fontSeqRef.current}`;
         await installFont(ttfBytes, fName, { weight: v.weight, style: v.style });
@@ -357,7 +359,8 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           <GlyphPreviewCanvas glyphs={glyphs} mappings={mappings}
             wordSpace={wordSpace} lsb={lsb} rsb={rsb}
             text={previewText.split('\n')[0]||'Hello'} size={previewSize}
-            pathMap={cachedPathsRef.current[previewVariant] ?? cachedPathsRef.current['normal'] ?? null} />
+            pathMap={cachedPathsRef.current[previewVariant] ?? cachedPathsRef.current['normal'] ?? null}
+            cacheVersion={cachedPathsVersion} />
         </div>
         <input type="text" value={previewText.split('\n')[0]}
           onChange={e=>setPreviewText(e.target.value)} placeholder="Preview text…"
