@@ -43,61 +43,6 @@ async function installFont(bytes, familyName, { weight='normal', style='normal' 
   return familyName;
 }
 
-function GlyphPreviewCanvas({ glyphs, mappings, wordSpace, lsb, rsb, text, size=64, pathMap, cacheVersion }) {
-  const canvasRef = useRef();
-  const containerRef = useRef();
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const containerW = containerRef.current?.clientWidth || 360;
-    const ctx = canvas.getContext('2d');
-    const H = size * 1.6;
-    canvas.height = H;
-    const charMap = {};
-    for (const [idxStr, char] of Object.entries(mappings)) {
-      const g = glyphs[+idxStr];
-      // Use per-variant pathMap if available, else fall back to _cachedPath
-      const d = pathMap?.[char] ?? g?._cachedPath;
-      if (!d) continue;
-      charMap[char] = placeGlyph(d, { width: g.canvas.width, height: g.canvas.height }, PAD, char, { lsb, rsb });
-    }
-    const scale = size / 800;
-    const chars = [...text];
-    let totalW = 0;
-    for (const c of chars) totalW += c === ' ' ? wordSpace * scale : ((charMap[c]?.advance ?? wordSpace/2) * scale);
-    const dpr = window.devicePixelRatio || 1;
-    const cssW = Math.min(Math.max(totalW + 16, 200), containerW);
-    const cssH = H;
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    canvas.style.width = cssW + 'px';
-    canvas.style.height = cssH + 'px';
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, cssW, cssH);
-    ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, cssW, cssH);
-    const baseline = size * 1.1;
-    ctx.strokeStyle = 'rgba(224,201,127,0.18)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, baseline); ctx.lineTo(cssW, baseline); ctx.stroke();
-    let x = 8;
-    ctx.fillStyle = '#e8e6f0';
-    for (const c of chars) {
-      if (c === ' ') { x += wordSpace * scale; continue; }
-      const g = charMap[c];
-      if (!g) { x += (wordSpace/2)*scale; continue; }
-      const p = new Path2D(g.d);
-      ctx.save();
-      ctx.translate(x, baseline);
-      ctx.scale(scale, -scale);
-      ctx.fill(p);
-      ctx.restore();
-      x += g.advance * scale;
-    }
-  }, [glyphs, mappings, wordSpace, lsb, rsb, text, size, pathMap, cacheVersion]);
-  return <div ref={containerRef} style={{ width:'100%' }}><canvas ref={canvasRef} style={{ display:'block', borderRadius:8, background:'#111' }} /></div>;
-}
-
 function loadHistory() {
   try { const r=localStorage.getItem(LS_KEY); return r?JSON.parse(r):[]; } catch { return []; }
 }
@@ -139,8 +84,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const [copiedCSS, setCopiedCSS]           = useState(false);
   const fontFaceRef    = useRef({});
   const fontSeqRef     = useRef(0);
-  const cachedPathsRef = useRef({}); // { variantId: { char: path } }
-  const [cachedPathsVersion, setCachedPathsVersion] = useState(0); // bumped after each build to trigger re-render
   const mappedEntries = Object.entries(mappings);
 
   async function buildVariant(variant) {
@@ -187,11 +130,6 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         setStatus(`Building ${v.label}…`);
         const { ttfBytes, glyphs: builtGlyphs } = await buildVariant(v);
         out[vId] = { ttf: ttfBytes };
-        // Store per-variant cached paths for canvas preview
-        const pathMap = {};
-        for (const bg of builtGlyphs) pathMap[bg.char] = bg.d;
-        cachedPathsRef.current[vId] = pathMap;
-        setCachedPathsVersion(v => v + 1); // trigger canvas re-render
         // TTF only — no WOFF/WOFF2 conversion
         const fName = `cfprev-${fontName}-${vId}-${++fontSeqRef.current}`;
         await installFont(ttfBytes, fName, { weight: v.weight, style: v.style });
@@ -327,55 +265,23 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
             </div>
           </div>
         ))}
-        {!hasResults && (
-          <p style={{ marginTop:4, fontSize:'0.8rem', color:'var(--accent)', background:'rgba(224,201,127,0.07)', border:'1px solid rgba(224,201,127,0.2)', borderRadius:6, padding:'6px 10px' }}>
-            ⚡ Generate fonts first — then drag sliders to see live canvas updates below.
-          </p>
-        )}
-      </div>
 
-      {/* Shared variant selector — controls both canvas and textarea previews */}
-      {hasResults && Object.keys(cachedPathsRef.current).length > 0 && (
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
-          <span style={{ fontSize:'0.8rem', color:'var(--muted)', alignSelf:'center', marginRight:4 }}>Preview variant:</span>
+      {/* Variant selector — controls Live Font Preview */}
+      {hasResults && Object.keys(results).length > 1 && (
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
+          <span style={{ fontSize:"0.8rem", color:"var(--muted)", alignSelf:"center", marginRight:4 }}>Preview variant:</span>
           {VARIANTS.filter(v=>selectedVariants.includes(v.id) && results[v.id]).map(v=>(
             <button key={v.id} onClick={()=>setPreviewVariant(v.id)}
-              style={{ padding:'5px 12px', borderRadius:6, fontSize:'0.82rem',
-                background: previewVariant===v.id ? 'var(--accent2)' : 'var(--surface2)',
-                color: previewVariant===v.id ? '#fff' : 'var(--muted)',
-                border: previewVariant===v.id ? '1px solid var(--accent2)' : '1px solid var(--border)',
-                fontStyle: v.style, fontWeight: v.weight==='bold' ? 700 : 400 }}>
+              style={{ padding:"5px 12px", borderRadius:6, fontSize:"0.82rem",
+                background: previewVariant===v.id ? "var(--accent2)" : "var(--surface2)",
+                color: previewVariant===v.id ? "#fff" : "var(--muted)",
+                border: previewVariant===v.id ? "1px solid var(--accent2)" : "1px solid var(--border)",
+                fontStyle: v.style, fontWeight: v.weight==="bold" ? 700 : 400 }}>
               {v.label}
             </button>
           ))}
         </div>
       )}
-
-      {/* Live metrics canvas preview */}
-      <div style={{ ...S.card }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
-          <div>
-            <h3 style={{ fontSize:'1rem', marginBottom:2 }}>Live Metrics Preview</h3>
-            <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Canvas — updates instantly as you drag sliders above (requires at least one generation)</p>
-          </div>
-          <div style={S.row}>
-            <span style={{ fontSize:'0.82rem', color:'var(--muted)' }}>Size</span>
-            <input type="range" min={24} max={96} value={previewSize} onChange={e=>setPreviewSize(+e.target.value)} style={{ width:70 }} />
-            <span style={S.mono}>{previewSize}px</span>
-          </div>
-        </div>
-        <div style={{ overflowX:'auto', marginBottom:10 }}>
-          <GlyphPreviewCanvas glyphs={glyphs} mappings={mappings}
-            wordSpace={wordSpace} lsb={lsb} rsb={rsb}
-            text={previewText.split('\n')[0]||'Hello'} size={previewSize}
-            pathMap={cachedPathsRef.current[previewVariant] ?? cachedPathsRef.current['normal'] ?? null}
-            cacheVersion={cachedPathsVersion} />
-        </div>
-        <input type="text" value={previewText.split('\n')[0]}
-          onChange={e=>setPreviewText(e.target.value)} placeholder="Preview text…"
-          style={{ fontSize:'0.86rem' }} />
-      </div>
-
       {/* Live typing preview (post-generation) */}
       {hasResults && (
         <div style={{ ...S.card }}>
