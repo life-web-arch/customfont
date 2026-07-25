@@ -108,7 +108,7 @@ const VARIANTS = [
 ];
 // FORMATS removed — TTF only
 
-export default function ExportPage({ glyphs, mappings, fontName }) {
+export default function ExportPage({ glyphs, mappings, fontName, setFontName, fontNameInputRef }) {
   const [busy, setBusy]                     = useState(false);
   const [status, setStatus]                 = useState('');
   const [results, setResults]               = useState({});
@@ -120,8 +120,8 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
   const [wordSpace, setWordSpace]           = useState(300);
   const [lsb, setLsb]                       = useState(50);
   const [rsb, setRsb]                       = useState(50);
-  const [history, setHistory]               = useState(loadHistory);
-  const [showHistory, setShowHistory]       = useState(false);
+  // history state moved to HistoryPage
+  // showHistory removed — History is now its own tab
   const [importedFamily, setImportedFamily] = useState(null);
   const [importStatus, setImportStatus]     = useState('');
   const [showPrivacy, setShowPrivacy]       = useState(false);
@@ -147,7 +147,25 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
     return { ttfBytes: buildTTF(fontName, builtGlyphs, { wordSpace, weight: variant.weight, style: variant.style }), glyphs: builtGlyphs };
   }
 
+  function requestFontName() {
+    if (!fontNameInputRef?.current) return;
+    const el = fontNameInputRef.current;
+    // Scroll into view
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Highlight with a flash border + focus
+    el.focus();
+    el.select();
+    el.style.transition = 'box-shadow 0.15s, border-color 0.15s';
+    el.style.borderColor = 'var(--accent)';
+    el.style.boxShadow = '0 0 0 3px rgba(224,201,127,0.45)';
+    setTimeout(() => {
+      el.style.borderColor = '';
+      el.style.boxShadow = '';
+    }, 2000);
+  }
+
   async function generate() {
+    if (!fontName.trim()) { requestFontName(); return; }
     setBusy(true); setResults({});
     try {
       const out = {};
@@ -249,15 +267,9 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24, flexWrap:'wrap', gap:8 }}>
-        <div>
-          <h2 style={{ fontSize:'1.4rem', marginBottom:4 }}>Export Font</h2>
-          <p style={{ color:'var(--muted)', fontSize:'0.9rem' }}>{mappedEntries.length} characters mapped · adjust metrics and preview live before generating</p>
-        </div>
-        <button onClick={()=>setShowHistory(v=>!v)}
-          style={{ padding:'7px 14px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:'0.85rem' }}>
-          🕓 History ({history.length})
-        </button>
+      <div style={{ marginBottom:24 }}>
+        <h2 style={{ fontSize:'1.4rem', marginBottom:4 }}>Export Font</h2>
+        <p style={{ color:'var(--muted)', fontSize:'0.9rem' }}>{mappedEntries.length} characters mapped · set a font name above, then generate</p>
       </div>
 
       {/* Settings */}
@@ -471,35 +483,7 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
         </div>
       )}
 
-      {/* History panel */}
-      {showHistory && (
-        <div style={{ ...S.card }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-            <h3>Font History</h3>
-            <button onClick={()=>setShowHistory(false)} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:'1.1rem', cursor:'pointer' }}>✕</button>
-          </div>
-          {history.length===0 ? (
-            <p style={{ color:'var(--muted)', fontSize:'0.88rem' }}>No history yet — generate a font first.</p>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {[...history].reverse().map(entry=>(
-                <div key={entry.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 14px', gap:8, flexWrap:'wrap' }}>
-                  <div>
-                    <div style={{ fontWeight:600, marginBottom:2 }}>{entry.name}</div>
-                    <div style={{ color:'var(--muted)', fontSize:'0.78rem' }}>{entry.date} · {Object.keys(entry.variants).join(', ')}</div>
-                  </div>
-                  <div style={{ display:'flex', gap:8 }}>
-                    <button onClick={()=>restoreFromHistory(entry)} style={{ padding:'5px 12px', background:'var(--accent2)', color:'#fff', borderRadius:6, fontSize:'0.82rem', fontWeight:600 }}>Restore</button>
-                    {/* Download buttons for all saved formats */}
-                    {['ttf','woff','woff2'].map(fmt => {
-                      const vId = Object.keys(entry.variants)[0];
-                      const vData = entry.variants[vId];
-                      const bytes = vData?.[fmt] ?? (typeof vData === 'string' && fmt === 'ttf' ? vData : null);
-                      if (!bytes) return null;
-                      const mimes = { ttf:'font/ttf', woff:'font/woff', woff2:'font/woff2' };
-                      return (
-                        <button key={fmt} onClick={()=>download(b64ToUint8(bytes),`${entry.name.replace(/\s+/g,'-')}.${fmt}`,mimes[fmt])}
-                          style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>
+                                style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>
                           ⬇ {fmt.toUpperCase()}
                         </button>
                       );

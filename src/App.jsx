@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import UploadPage from './pages/UploadPage.jsx';
 import MappingPage from './pages/MappingPage.jsx';
 import ExportPage from './pages/ExportPage.jsx';
@@ -11,7 +11,8 @@ export default function App() {
   const [tab, setTab] = useState(0);
   const [glyphs, setGlyphs] = useState([]); // segmented glyph data
   const [mappings, setMappings] = useState({}); // { index -> char }
-  const [fontName, setFontName] = useState('My Custom Font');
+  const [fontName, setFontName] = useState('');
+  const fontNameInputRef = useRef(null);
 
   const canMap = glyphs.length > 0;
   const canExport = canMap && Object.keys(mappings).length > 0;
@@ -39,11 +40,12 @@ export default function App() {
           </nav>
 
           <input
+            ref={fontNameInputRef}
             type="text"
             className="app-fontname"
             value={fontName}
             onChange={e => setFontName(e.target.value)}
-            placeholder="Font name…"
+            placeholder="Type font name…"
             title="Font family name"
           />
         </div>
@@ -53,7 +55,7 @@ export default function App() {
       <main>
         {tab === 0 && <UploadPage onGlyphs={g => { setGlyphs(g); setMappings({}); setTab(1); }} />}
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings} onDone={() => setTab(2)} />}
-        {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName} />}
+        {tab === 2 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName} setFontName={setFontName} fontNameInputRef={fontNameInputRef} />}
         {tab === 3 && <HistoryPage />}
         {tab === 4 && <HelpPage />}
       </main>

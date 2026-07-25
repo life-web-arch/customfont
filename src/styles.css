@@ -160,6 +160,10 @@ main > div { animation: fadeInUp .35s var(--ease) both; }
   flex: 0 0 auto;
   font-size: 0.86rem;
 }
+.app-fontname:placeholder-shown {
+  border-color: rgba(224,201,127,0.45);
+  box-shadow: 0 0 0 2px rgba(224,201,127,0.12);
+}
 
 main { flex: 1; padding: 24px 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
 
