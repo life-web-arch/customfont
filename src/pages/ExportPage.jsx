@@ -163,8 +163,19 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
       }
       setResults(out);
       setStatus('✅ Done! Your font is ready.');
-      const entry = { id:Date.now(), name:fontName, date:new Date().toLocaleString(),
-        variants: Object.fromEntries(Object.entries(out).map(([id,f])=>[id,uint8ToB64(f.ttf)])) };
+      const entry = {
+        id: Date.now(),
+        name: fontName,
+        date: new Date().toLocaleString(),
+        formats: selectedFormats,
+        variants: Object.fromEntries(
+          Object.entries(out).map(([id, f]) => [id, {
+            ttf:   f.ttf   ? uint8ToB64(f.ttf)   : null,
+            woff:  f.woff  ? uint8ToB64(f.woff)  : null,
+            woff2: f.woff2 ? uint8ToB64(f.woff2) : null,
+          }])
+        )
+      };
       const updated = [...loadHistory(), entry];
       saveHistory(updated); setHistory(updated);
     } catch(e) { setStatus('❌ Error: '+e.message); }
@@ -440,10 +451,20 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
                   </div>
                   <div style={{ display:'flex', gap:8 }}>
                     <button onClick={()=>restoreFromHistory(entry)} style={{ padding:'5px 12px', background:'var(--accent2)', color:'#fff', borderRadius:6, fontSize:'0.82rem', fontWeight:600 }}>Restore</button>
-                    <button onClick={()=>{
-                      const v=entry.variants[Object.keys(entry.variants)[0]];
-                      download(b64ToUint8(v),`${entry.name.replace(/\s+/g,'-')}.ttf`,'font/ttf');
-                    }} style={{ padding:'5px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.82rem' }}>⬇ TTF</button>
+                    {/* Download buttons for all saved formats */}
+                    {['ttf','woff','woff2'].map(fmt => {
+                      const vId = Object.keys(entry.variants)[0];
+                      const vData = entry.variants[vId];
+                      const bytes = vData?.[fmt] ?? (typeof vData === 'string' && fmt === 'ttf' ? vData : null);
+                      if (!bytes) return null;
+                      const mimes = { ttf:'font/ttf', woff:'font/woff', woff2:'font/woff2' };
+                      return (
+                        <button key={fmt} onClick={()=>download(b64ToUint8(bytes),`${entry.name.replace(/\s+/g,'-')}.${fmt}`,mimes[fmt])}
+                          style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:'0.8rem' }}>
+                          ⬇ {fmt.toUpperCase()}
+                        </button>
+                      );
+                    })}
                     <button onClick={()=>deleteEntry(entry.id)} style={{ padding:'5px 10px', background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', borderRadius:6, color:'var(--danger)', fontSize:'0.82rem' }}>✕</button>
                   </div>
                 </div>

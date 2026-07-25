@@ -9,50 +9,90 @@ function saveHistory(entries) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(entries.slice(-10))); } catch(e) { console.warn('localStorage quota exceeded'); }
 }
 function b64ToUint8(b64) {
-  const bin = atob(b64); const u8 = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return u8;
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
 }
-function download(data, filename, mime) {
+function triggerDownload(data, filename, mime) {
   const blob = new Blob([data], { type: mime });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+const VARIANT_LABELS = { normal: 'Normal', bold: 'Bold', italic: 'Italic', boldItalic: 'Bold Italic' };
+const VARIANT_STYLE  = { bold: { fontWeight: 700 }, italic: { fontStyle: 'italic' }, boldItalic: { fontWeight: 700, fontStyle: 'italic' } };
+const FORMAT_MIME    = { ttf: 'font/ttf', woff: 'font/woff', woff2: 'font/woff2' };
+const FORMAT_COLOR   = { ttf: 'var(--text)', woff: 'var(--accent2)', woff2: 'var(--accent)' };
+
+// Normalise old (string) and new (object) history entries
+function getFormatBytes(variantData, fmt) {
+  if (!variantData) return null;
+  if (typeof variantData === 'string') return fmt === 'ttf' ? variantData : null; // legacy
+  return variantData[fmt] ?? null;
 }
 
 export default function HistoryPage() {
   const [history, setHistory] = useState(loadHistory);
   const [status, setStatus] = useState('');
+  const [expanded, setExpanded] = useState(null); // entry id
 
   function deleteEntry(id) {
     const updated = history.filter(e => e.id !== id);
     saveHistory(updated); setHistory(updated);
+    if (expanded === id) setExpanded(null);
   }
 
   function clearAll() {
     if (!window.confirm('Clear all font history from localStorage? This cannot be undone.')) return;
     localStorage.removeItem(LS_KEY);
     setHistory([]);
-    setStatus('🗑️ History cleared.');
+    setExpanded(null);
+    setStatus('🗑️ All history cleared.');
   }
 
-  function downloadTTF(entry) {
-    const vId = Object.keys(entry.variants)[0];
-    const bytes = b64ToUint8(entry.variants[vId]);
-    download(bytes, `${entry.name.replace(/\s+/g, '-')}.ttf`, 'font/ttf');
+  function downloadFmt(entry, vId, fmt) {
+    const bytes = getFormatBytes(entry.variants[vId], fmt);
+    if (!bytes) return;
+    const base  = entry.name.replace(/\s+/g, '-');
+    const suffix = vId === 'normal' ? '' : `-${VARIANT_LABELS[vId]?.replace(' ', '') ?? vId}`;
+    triggerDownload(b64ToUint8(bytes), `${base}${suffix}.${fmt}`, FORMAT_MIME[fmt]);
+  }
+
+  function downloadAll(entry) {
+    const fmts = ['ttf', 'woff', 'woff2'];
+    for (const [vId, vData] of Object.entries(entry.variants)) {
+      for (const fmt of fmts) {
+        const bytes = getFormatBytes(vData, fmt);
+        if (!bytes) continue;
+        const base   = entry.name.replace(/\s+/g, '-');
+        const suffix = vId === 'normal' ? '' : `-${VARIANT_LABELS[vId]?.replace(' ', '') ?? vId}`;
+        triggerDownload(b64ToUint8(bytes), `${base}${suffix}.${fmt}`, FORMAT_MIME[fmt]);
+      }
+    }
   }
 
   const S = {
     card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20, marginBottom: 16 },
-    row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', gap: 8, flexWrap: 'wrap', marginBottom: 10 },
+    entryWrap: { background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 12, overflow: 'hidden' },
+    entryHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', gap: 8, flexWrap: 'wrap', cursor: 'pointer' },
+    variantRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' },
+    fmtBtn: (fmt) => ({
+      padding: '4px 11px', background: 'var(--surface)', border: '1px solid var(--border)',
+      borderRadius: 6, color: FORMAT_COLOR[fmt], fontSize: '0.8rem', fontWeight: 600,
+    }),
   };
 
   return (
     <div>
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h2 style={{ fontSize: '1.4rem', marginBottom: 4 }}>🕓 Font History</h2>
           <p style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>
-            Last {history.length} generated fonts — stored in browser localStorage on this device only.
+            {history.length} saved font{history.length !== 1 ? 's' : ''} — stored in browser localStorage on this device only.
           </p>
         </div>
         {history.length > 0 && (
@@ -77,27 +117,74 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div>
-          {[...history].reverse().map(entry => (
-            <div key={entry.id} style={S.row}>
-              <div>
-                <div style={{ fontWeight: 600, marginBottom: 3 }}>{entry.name}</div>
-                <div style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>
-                  {entry.date} · {Object.keys(entry.variants).join(', ')} ·{' '}
-                  {Object.keys(entry.variants).length} variant{Object.keys(entry.variants).length > 1 ? 's' : ''}
+          {[...history].reverse().map(entry => {
+            const variantIds = Object.keys(entry.variants);
+            const isOpen = expanded === entry.id;
+
+            return (
+              <div key={entry.id} style={S.entryWrap}>
+                {/* Collapsed header row */}
+                <div style={S.entryHeader} onClick={() => setExpanded(isOpen ? null : entry.id)}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 3 }}>{entry.name}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>
+                      {entry.date} · {variantIds.map(v => VARIANT_LABELS[v] ?? v).join(', ')} · {variantIds.length} variant{variantIds.length > 1 ? 's' : ''}
+                    </div>
+                    {/* Format badges */}
+                    <div style={{ display: 'flex', gap: 5, marginTop: 5, flexWrap: 'wrap' }}>
+                      {['ttf','woff','woff2'].map(fmt => {
+                        const hasAny = variantIds.some(vId => getFormatBytes(entry.variants[vId], fmt));
+                        if (!hasAny) return null;
+                        return (
+                          <span key={fmt} style={{ fontSize: '0.7rem', padding: '2px 7px', borderRadius: 4, background: 'var(--surface)', border: '1px solid var(--border)', color: FORMAT_COLOR[fmt], fontWeight: 600 }}>
+                            {fmt.toUpperCase()}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                    <button onClick={e => { e.stopPropagation(); downloadAll(entry); }}
+                      style={{ padding: '6px 12px', background: 'var(--accent2)', color: '#fff', borderRadius: 6, fontSize: '0.8rem', fontWeight: 600 }}
+                      title="Download all variants & formats">
+                      ⬇ All
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); deleteEntry(entry.id); }}
+                      style={{ padding: '6px 10px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 6, color: 'var(--danger)', fontSize: '0.82rem' }}>
+                      ✕
+                    </button>
+                    <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>{isOpen ? '▲' : '▼'}</span>
+                  </div>
                 </div>
+
+                {/* Expanded: per-variant format buttons */}
+                {isOpen && (
+                  <div>
+                    {variantIds.map(vId => {
+                      const vData = entry.variants[vId];
+                      const availFmts = ['ttf','woff','woff2'].filter(f => getFormatBytes(vData, f));
+                      if (availFmts.length === 0) return null;
+                      return (
+                        <div key={vId} style={S.variantRow}>
+                          <span style={{ minWidth: 80, fontSize: '0.85rem', fontWeight: 600, color: 'var(--muted)', ...(VARIANT_STYLE[vId] ?? {}) }}>
+                            {VARIANT_LABELS[vId] ?? vId}
+                          </span>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {availFmts.map(fmt => (
+                              <button key={fmt} onClick={() => downloadFmt(entry, vId, fmt)} style={S.fmtBtn(fmt)}>
+                                ⬇ {fmt.toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => downloadTTF(entry)}
-                  style={{ padding: '5px 12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: '0.82rem' }}>
-                  ⬇ TTF
-                </button>
-                <button onClick={() => deleteEntry(entry.id)}
-                  style={{ padding: '5px 10px', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)', borderRadius: 6, color: 'var(--danger)', fontSize: '0.82rem' }}>
-                  ✕
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
+
           <p style={{ marginTop: 14, fontSize: '0.78rem', color: 'var(--muted)', lineHeight: 1.6 }}>
             ⚠ History is stored in browser localStorage on this device only. Max 10 entries kept. Clearing site data will erase all history permanently.
           </p>
