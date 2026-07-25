@@ -280,7 +280,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         setResults(prev => ({ ...prev, ...out }));
         setPreviewKey(k => k + 1);
       } catch(e) { console.warn('Slider rebuild failed:', e); }
-    }, 350);
+    }, 0);
     return () => clearTimeout(debounceRef.current);
   }, [wordSpace, lsb, rsb]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -355,7 +355,9 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
           <div key={label} style={{ marginBottom:14 }}>
             <span style={S.label}>{label}</span>
             <div style={S.row}>
-              <input type="range" min={min} max={max} value={val} onChange={e=>set(+e.target.value)} style={{ flex:1 }} />
+              <input type="range" min={min} max={max} value={val}
+                onPointerDown={()=>{ if (document.activeElement) document.activeElement.blur(); }}
+                onChange={e=>set(+e.target.value)} style={{ flex:1 }} />
               <span style={S.mono}>{val}</span>
             </div>
           </div>
