@@ -6,10 +6,31 @@ const IcoCamera  = () => <svg width="36" height="36" viewBox="0 0 24 24" fill="n
 const IcoChevron = ({ open }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition:'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }}><polyline points="6 9 12 15 18 9"/></svg>;
 const IcoCheck   = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
+// Animated scanning bar shown inside the drop zone while processing
+function ScanBar({ label }) {
+  return (
+    <div style={{ textAlign:'center', padding:'8px 0' }}>
+      <div style={{
+        width:'100%', height:4, borderRadius:2,
+        background:'var(--border)', overflow:'hidden', marginBottom:14,
+      }}>
+        <div style={{
+          height:'100%', borderRadius:2,
+          background:'linear-gradient(90deg, transparent 0%, var(--accent2) 40%, var(--accent) 60%, transparent 100%)',
+          backgroundSize:'200% 100%',
+          animation:'cfScan 1.2s linear infinite',
+        }} />
+      </div>
+      <div style={{ color:'var(--accent2)', fontWeight:600, fontSize:'0.92rem' }}>{label}</div>
+    </div>
+  );
+}
+
 export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStartFresh }) {
   const [dragOver, setDragOver] = useState(false);
   const [status, setStatus]     = useState('');
   const [busy, setBusy]         = useState(false);
+  const [loadPhase, setLoadPhase] = useState(''); // 'loading' | 'detecting' | ''
   const [delta, setDelta]       = useState(40);
   const [preview, setPreview]   = useState(initialPreview ?? null);
   const [tipsOpen, setTipsOpen] = useState(false);
@@ -25,7 +46,9 @@ export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStar
       return;
     }
     setBusy(true);
+    setLoadPhase('loading');
     setStatus('Loading image…');
+    await new Promise(r => setTimeout(r, 0));
     try {
       const bmp = await createImageBitmap(file);
       const MAX = 3000;
@@ -37,19 +60,21 @@ export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStar
       ctx.drawImage(bmp, 0, 0, w, h);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
       setPreview(dataUrl);
+      setLoadPhase('detecting');
       setStatus('Detecting glyphs…');
+      await new Promise(r => setTimeout(r, 0));
       const imgData = ctx.getImageData(0, 0, w, h);
       const result = await segmentFromImageData(imgData, { delta });
       if (result.length === 0) {
         setStatus('No glyphs detected. Try adjusting ink sensitivity or use a darker pen on white paper.');
-        setBusy(false);
+        setBusy(false); setLoadPhase('');
         return;
       }
       setStatus(`Found ${result.length} glyph${result.length !== 1 ? 's' : ''} — ${mode==='append'?'added to existing glyphs':'proceed to Map Glyphs'}`);
       const chars = [...charSeq.trim()].filter((c,i,a)=>a.indexOf(c)===i);
       onGlyphs(result, dataUrl, autoAssign ? chars : [], mode);
     } catch (e) { setStatus('Error: ' + e.message); }
-    setBusy(false);
+    setBusy(false); setLoadPhase('');
   }, [delta, onGlyphs, charSeq, autoAssign]);
 
   const handleFile = useCallback((file) => {
@@ -82,18 +107,25 @@ export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStar
         onDrop={onDrop}
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        onClick={() => fileRef.current.click()}
+        onClick={() => { if (!busy) fileRef.current.click(); }}
         style={{
-          border:`2px dashed ${dragOver ? 'var(--accent)' : 'var(--border)'}`,
-          borderRadius:'var(--radius)', padding:'48px 24px', textAlign:'center',
-          cursor:'pointer',
-          background: dragOver ? 'rgba(224,201,127,0.05)' : 'var(--surface)',
+          border:`2px dashed ${busy ? 'var(--accent2)' : dragOver ? 'var(--accent)' : 'var(--border)'}`,
+          borderRadius:'var(--radius)', padding:'32px 24px', textAlign:'center',
+          cursor: busy ? 'default' : 'pointer',
+          background: busy ? 'rgba(127,156,245,0.05)' : dragOver ? 'rgba(224,201,127,0.05)' : 'var(--surface)',
           transition:'border-color .2s, background .2s', marginBottom:24,
+          minHeight: 120,
         }}
       >
-        <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}><IcoCamera /></div>
-        <div style={{ fontWeight:600, marginBottom:6 }}>Drop photo here or click to browse</div>
-        <div style={{ color:'var(--muted)', fontSize:'0.88rem' }}>JPG, PNG, WEBP, HEIC — up to 50MB</div>
+        {busy ? (
+          <ScanBar label={loadPhase === 'detecting' ? 'Detecting glyphs…' : 'Loading image…'} />
+        ) : (
+          <>
+            <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}><IcoCamera /></div>
+            <div style={{ fontWeight:600, marginBottom:6 }}>Drop photo here or click to browse</div>
+            <div style={{ color:'var(--muted)', fontSize:'0.88rem' }}>JPG, PNG, WEBP, HEIC — up to 50MB</div>
+          </>
+        )}
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => handleFile(e.target.files[0])} />
       </div>
 

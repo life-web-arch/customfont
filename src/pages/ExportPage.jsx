@@ -87,6 +87,7 @@ const VARIANTS = [
 export default function ExportPage({ glyphs, mappings, fontName, setFontName, fontNameInputRef }) {
   const _p = loadPrefs();
   const [busy, setBusy]                     = useState(false);
+  const [genProgress, setGenProgress]       = useState({ current: 0, total: 0 });
   const [status, setStatus]                 = useState('');
   const [results, setResults]               = useState({});
   const [selectedVariants, setSelectedVariants] = useState(_p.selectedVariants || ['normal']);
@@ -114,6 +115,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const resultsRef      = useRef(null);
   const debounceRef     = useRef(null);
   const previewRef      = useRef(null);
+  const [sliderDisplay, setSliderDisplay] = useState({ wordSpace, lsb, rsb });
   const lastSliderVals  = useRef({ wordSpace, lsb, rsb });
   const mappedEntries = Object.entries(mappings);
 
@@ -145,10 +147,12 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function buildVariant(variant) {
+  async function buildVariant(variant, onProgress) {
     await initPotrace();
     const builtGlyphs = [];
-    for (const [idxStr, char] of mappedEntries) {
+    const total = mappedEntries.length;
+    for (let ei = 0; ei < total; ei++) {
+      const [idxStr, char] = mappedEntries[ei];
       const g = glyphs[+idxStr];
       let imgData = g.imageData;
       if (variant.weightPx) imgData = await dilateImageData(imgData, variant.weightPx);
@@ -158,6 +162,8 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       let placed = placeGlyph(d, { width: g.canvas.width, height: g.canvas.height }, PAD, char, { lsb, rsb });
       if (variant.italicDeg) placed = { ...placed, d: applyItalic(placed.d, variant.italicDeg) };
       builtGlyphs.push({ char, ...placed });
+      if (onProgress) onProgress(ei + 1, total);
+      if ((ei + 1) % 4 === 0) await new Promise(r => setTimeout(r, 0));
     }
     return { ttfBytes: buildTTF(fontName, builtGlyphs, { wordSpace, weight: variant.weight, style: variant.style }), glyphs: builtGlyphs };
   }
@@ -182,13 +188,18 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   async function generate() {
     if (!fontName.trim()) { requestFontName(); return; }
     setGenDone(false);
+    setGenProgress({ current: 0, total: mappedEntries.length * selectedVariants.length });
     setBusy(true); setResults({});
+    let done = 0;
     try {
       const out = {};
       for (const vId of selectedVariants) {
         const v = VARIANTS.find(x => x.id === vId);
         setStatus(`Building ${v.label}…`);
-        const { ttfBytes, glyphs: builtGlyphs } = await buildVariant(v);
+        const { ttfBytes, glyphs: builtGlyphs } = await buildVariant(v, () => {
+          done++;
+          setGenProgress(p => ({ ...p, current: done }));
+        });
         out[vId] = { ttf: ttfBytes };
         // TTF only — no WOFF/WOFF2 conversion
         const fName = `cfprev-${fontName}-${vId}-${++fontSeqRef.current}`;
@@ -211,6 +222,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       };
       saveHistory([...loadHistory(), entry]);
     } catch(e) { setStatus('err: '+e.message); }
+    setGenProgress({ current: 0, total: 0 });
     setBusy(false);
     setTimeout(() => {
       if (resultsRef.current) {
@@ -317,7 +329,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         setResults(prev => ({ ...prev, ...out }));
         setPreviewKey(k => k + 1);
       } catch(e) { console.warn('Slider rebuild failed:', e); }
-    }, 0);
+    }, 400);
     return () => clearTimeout(debounceRef.current);
   }, [wordSpace, lsb, rsb]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -327,9 +339,9 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   }, [selectedVariants, previewText, previewSize, previewVariant, wordSpace, lsb, rsb]);
 
   const sliders = [
-    { label:'Word space (px)', val:wordSpace, set:setWordSpace, min:100, max:600 },
-    { label:'Left bearing',    val:lsb,       set:setLsb,       min:0,   max:200 },
-    { label:'Right bearing',   val:rsb,       set:setRsb,       min:0,   max:200 },
+    { label:'Word space (px)', key:'wordSpace', val:sliderDisplay.wordSpace, set:setWordSpace, min:100, max:600 },
+    { label:'Left bearing',    key:'lsb',       val:sliderDisplay.lsb,       set:setLsb,       min:0,   max:200 },
+    { label:'Right bearing',   key:'rsb',       val:sliderDisplay.rsb,       set:setRsb,       min:0,   max:200 },
   ];
 
   return (<>
@@ -376,7 +388,17 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         <button onClick={generate}
           disabled={busy||selectedVariants.length===0||mappedEntries.length===0}
           className="btn-primary" style={{ padding:'12px 32px', fontSize:'1rem' }}>
-          {busy ? <><span className="spinner" style={{marginRight:6}} />Generating…</> : genDone ? <><IcoCheck /><span style={{marginLeft:6}}>Generated!</span></> : <><IcoZap /><span style={{marginLeft:6}}>Generate Fonts</span></>}
+          {busy
+            ? (<>
+                <span className="spinner" style={{marginRight:8}} />
+                {genProgress.total > 0
+                  ? `${genProgress.current}/${genProgress.total} glyphs…`
+                  : 'Generating…'}
+              </>)
+            : genDone
+              ? <><IcoCheck /><span style={{marginLeft:6}}>Generated!</span></>
+              : <><IcoZap /><span style={{marginLeft:6}}>Generate Fonts</span></>
+          }
         </button>
         {mappedEntries.length===0 && <span style={{ color:'var(--muted)', fontSize:'0.85rem' }}>Map some glyphs first</span>}
       </div>
@@ -393,13 +415,17 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
       {/* Metrics & Spacing — moved after Generate */}
       <div style={{ ...S.card, marginTop:20 }}>
         <h3 style={{ fontSize:'0.95rem', marginBottom:14, display:'flex', alignItems:'center', gap:7 }}><IcoRuler /> Metrics &amp; Spacing</h3>
-        {sliders.map(({label,val,set,min,max})=>(
+        {sliders.map(({label,key,val,set,min,max})=>(
           <div key={label} style={{ marginBottom:14 }}>
             <span style={S.label}>{label}</span>
             <div style={S.row}>
               <input type="range" min={min} max={max} value={val}
-                onPointerDown={()=>{ if (document.activeElement) document.activeElement.blur(); }}
-                onChange={e=>set(+e.target.value)} style={{ flex:1 }} />
+                onChange={e => {
+                  const n = +e.target.value;
+                  setSliderDisplay(d => ({ ...d, [key]: n }));
+                  set(n);
+                }}
+                style={{ flex:1 }} />
               <span style={S.mono}>{val}</span>
             </div>
           </div>

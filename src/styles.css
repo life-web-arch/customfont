@@ -295,3 +295,9 @@ main { flex: 1; padding: 24px 20px; max-width: 1200px; margin: 0 auto; width: 10
   border: 1px solid var(--border);
 }
 .group-tab.is-active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+/* Upload scan animation */
+@keyframes cfScan {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
