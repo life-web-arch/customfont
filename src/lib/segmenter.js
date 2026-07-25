@@ -28,7 +28,6 @@ function localBg(gray, width, height) {
   const sw=Math.max(1,Math.round(width/32)), sh=Math.max(1,Math.round(height/32));
   const s=document.createElement('canvas'); s.width=sw; s.height=sh;
   s.getContext('2d').putImageData(grayToImg(gray,width,height),0,0);
-  // downscale via canvas
   const sm=document.createElement('canvas'); sm.width=sw; sm.height=sh;
   sm.getContext('2d').drawImage(s,0,0,sw,sh);
   const big=document.createElement('canvas'); big.width=width; big.height=height;
@@ -54,12 +53,47 @@ function morph(ink, width, height, grow) {
   return out;
 }
 
+// Otsu's method: find optimal global threshold from histogram.
+// Works on any image size, no spatial estimation needed.
+function otsuThreshold(gray) {
+  const hist = new Uint32Array(256);
+  for (let v of gray) hist[v]++;
+  const total = gray.length;
+  let sum = 0;
+  for (let v = 0; v < 256; v++) sum += v * hist[v];
+  let sumB = 0, wB = 0, best = 0, thresh = 0;
+  for (let v = 0; v < 256; v++) {
+    wB += hist[v];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += v * hist[v];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) ** 2;
+    if (between > best) { best = between; thresh = v; }
+  }
+  return thresh;
+}
+
 function binarize(imgData, delta=40) {
   const {width,height}=imgData;
   const gray=normalise(toGray(imgData));
-  const bg=localBg(gray,width,height);
+
+  // For large images use adaptive localBg (works well with enough pixels).
+  // For small patches (crop editor) use Otsu — localBg degenerates to
+  // a flat 1-4 pixel map at this scale and gives wrong background values.
+  const SMALL = 300; // either dimension below this → use Otsu
   let ink=new Uint8Array(width*height);
-  for (let i=0;i<ink.length;i++) if (gray[i]<200 && gray[i]<bg[i]-delta) ink[i]=1;
+  if (width < SMALL || height < SMALL) {
+    const thresh = otsuThreshold(gray);
+    // delta shifts the Otsu threshold darker (higher delta = stricter)
+    const t = Math.max(0, thresh - Math.round(delta * 0.3));
+    for (let i=0;i<ink.length;i++) if (gray[i] < t) ink[i]=1;
+  } else {
+    const bg=localBg(gray,width,height);
+    for (let i=0;i<ink.length;i++) if (gray[i]<200 && gray[i]<bg[i]-delta) ink[i]=1;
+  }
   ink=morph(morph(ink,width,height,true),width,height,false);
   return ink;
 }
