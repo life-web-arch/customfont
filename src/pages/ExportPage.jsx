@@ -116,6 +116,7 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
   // Formats: TTF only (WOFF2 WASM hangs on mobile; TTF works everywhere)
   const [previewText, setPreviewText]       = useState('Hello World\nThe quick brown fox\n0123456789');
   const [previewSize, setPreviewSize]       = useState(48);
+  const [previewVariant, setPreviewVariant]  = useState('normal');
   const [wordSpace, setWordSpace]           = useState(300);
   const [lsb, setLsb]                       = useState(50);
   const [rsb, setRsb]                       = useState(50);
@@ -226,7 +227,9 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
   }
 
   const hasResults = Object.keys(results).length > 0;
-  const generatedFamily = hasResults ? Object.values(fontFaceRef.current).join(', ')+', serif' : null;
+  const generatedFamily = hasResults && fontFaceRef.current[previewVariant]
+    ? fontFaceRef.current[previewVariant] + ', serif'
+    : hasResults ? Object.values(fontFaceRef.current)[0] + ', serif' : null;
   const S = {
     card:  { background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--radius)', padding:20, marginBottom:20 },
     label: { fontSize:'0.82rem', color:'var(--muted)', display:'block', marginBottom:4 },
@@ -277,18 +280,6 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
             <span style={{ color:'var(--muted)', fontSize:'0.82rem' }}>TrueType — works on Windows, Mac, Linux, Android, iOS & all browsers</span>
           </div>
         </div>
-        <div style={S.card}>
-          <h3 style={{ fontSize:'0.95rem', marginBottom:12 }}>Metrics & Spacing</h3>
-          {sliders.map(({label,val,set,min,max})=>(
-            <div key={label} style={{ marginBottom:14 }}>
-              <span style={S.label}>{label}</span>
-              <div style={S.row}>
-                <input type="range" min={min} max={max} value={val} onChange={e=>set(+e.target.value)} style={{ flex:1 }} />
-                <span style={S.mono}>{val}</span>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* Live metrics canvas preview */}
@@ -338,18 +329,75 @@ export default function ExportPage({ glyphs, mappings, fontName }) {
         </div>
       )}
 
+      {/* Metrics & Spacing — moved after Generate */}
+      <div style={{ ...S.card, marginTop:20 }}>
+        <h3 style={{ fontSize:'0.95rem', marginBottom:14 }}>📐 Metrics & Spacing</h3>
+        {sliders.map(({label,val,set,min,max})=>(
+          <div key={label} style={{ marginBottom:14 }}>
+            <span style={S.label}>{label}</span>
+            <div style={S.row}>
+              <input type="range" min={min} max={max} value={val} onChange={e=>set(+e.target.value)} style={{ flex:1 }} />
+              <span style={S.mono}>{val}</span>
+            </div>
+          </div>
+        ))}
+        {!hasResults && (
+          <p style={{ marginTop:4, fontSize:'0.8rem', color:'var(--accent)', background:'rgba(224,201,127,0.07)', border:'1px solid rgba(224,201,127,0.2)', borderRadius:6, padding:'6px 10px' }}>
+            ⚡ Generate fonts first — then drag sliders to see live canvas updates below.
+          </p>
+        )}
+      </div>
+
+      {/* Live metrics canvas preview */}
+      <div style={{ ...S.card }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
+          <div>
+            <h3 style={{ fontSize:'1rem', marginBottom:2 }}>Live Metrics Preview</h3>
+            <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Canvas — updates instantly as you drag sliders above (requires at least one generation)</p>
+          </div>
+          <div style={S.row}>
+            <span style={{ fontSize:'0.82rem', color:'var(--muted)' }}>Size</span>
+            <input type="range" min={24} max={96} value={previewSize} onChange={e=>setPreviewSize(+e.target.value)} style={{ width:70 }} />
+            <span style={S.mono}>{previewSize}px</span>
+          </div>
+        </div>
+        <div style={{ overflowX:'auto', marginBottom:10 }}>
+          <GlyphPreviewCanvas glyphs={glyphs} mappings={mappings}
+            wordSpace={wordSpace} lsb={lsb} rsb={rsb}
+            text={previewText.split('\n')[0]||'Hello'} size={previewSize} />
+        </div>
+        <input type="text" value={previewText.split('\n')[0]}
+          onChange={e=>setPreviewText(e.target.value)} placeholder="Preview text…"
+          style={{ fontSize:'0.86rem' }} />
+      </div>
+
       {/* Live typing preview (post-generation) */}
       {hasResults && (
         <div style={{ ...S.card }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
-            <div>
-              <h3 style={{ fontSize:'1rem', marginBottom:2 }}>✍ Live Font Preview</h3>
-              <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Type anything — rendered in your generated font in real time</p>
+          <div style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:10 }}>
+              <div>
+                <h3 style={{ fontSize:'1rem', marginBottom:2 }}>✍ Live Font Preview</h3>
+                <p style={{ color:'var(--muted)', fontSize:'0.8rem' }}>Type anything — rendered in your generated font in real time</p>
+              </div>
+              <label style={{ display:'flex', gap:8, alignItems:'center', color:'var(--muted)', fontSize:'0.82rem' }}>
+                Size <input type="range" min={12} max={120} value={previewSize} onChange={e=>setPreviewSize(+e.target.value)} style={{ width:70 }} />
+                <span style={S.mono}>{previewSize}px</span>
+              </label>
             </div>
-            <label style={{ display:'flex', gap:8, alignItems:'center', color:'var(--muted)', fontSize:'0.82rem' }}>
-              Size <input type="range" min={12} max={120} value={previewSize} onChange={e=>setPreviewSize(+e.target.value)} style={{ width:70 }} />
-              <span style={S.mono}>{previewSize}px</span>
-            </label>
+            {/* Variant selector */}
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {VARIANTS.filter(v=>selectedVariants.includes(v.id) && results[v.id]).map(v=>(
+                <button key={v.id} onClick={()=>setPreviewVariant(v.id)}
+                  style={{ padding:'5px 12px', borderRadius:6, fontSize:'0.82rem', fontWeight:600,
+                    background: previewVariant===v.id ? 'var(--accent2)' : 'var(--surface2)',
+                    color: previewVariant===v.id ? '#fff' : 'var(--muted)',
+                    border: previewVariant===v.id ? '1px solid var(--accent2)' : '1px solid var(--border)',
+                    fontStyle: v.style, fontWeight: v.weight==='bold' ? 700 : 400 }}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
           </div>
           <textarea value={previewText} onChange={e=>setPreviewText(e.target.value)}
             style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:140,
