@@ -191,16 +191,32 @@ export default function App() {
       <main>
         {tab === 0 && <UploadPage
           initialPreview={preview}
-          onGlyphs={(g, dataUrl, chars=[]) => {
-            setGlyphs(g);
-            if (chars.length) {
-              const m = {};
-              g.forEach((_, i) => { if (chars[i]) m[i] = chars[i]; });
-              setMappings(m);
+          hasGlyphs={glyphs.length > 0}
+          onGlyphs={(g, dataUrl, chars=[], mode='fresh') => {
+            if (mode === 'append') {
+              setGlyphs(prev => {
+                const offset = prev.length;
+                if (chars.length) {
+                  setMappings(m => {
+                    const nm = { ...m };
+                    g.forEach((_, i) => { if (chars[i]) nm[offset + i] = chars[i]; });
+                    return nm;
+                  });
+                }
+                return [...prev, ...g];
+              });
+              setTab(1);
             } else {
-              setMappings({});
+              setGlyphs(g);
+              if (chars.length) {
+                const m = {};
+                g.forEach((_, i) => { if (chars[i]) m[i] = chars[i]; });
+                setMappings(m);
+              } else {
+                setMappings({});
+              }
+              setPreview(dataUrl); setTab(1);
             }
-            setPreview(dataUrl); setTab(1);
           }} />}
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings}
           onDone={() => { setTab(2); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
