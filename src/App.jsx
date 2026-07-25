@@ -245,7 +245,7 @@ export default function App() {
         {tab === 1 && <MappingPage glyphs={glyphs} mappings={mappings} setMappings={setMappings}
           sourceUrl={sourceUrl} setGlyphs={setGlyphs}
           onDone={() => { setTab(2); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
-        {tab === 2 && <AlignPage glyphs={glyphs} mappings={mappings} glyphOverrides={glyphOverrides} setGlyphOverrides={setGlyphOverrides} onNext={() => { setTab(3); window.scrollTo({ top:0, behavior:'smooth' }); }} />
+        {tab === 2 && <AlignPage glyphs={glyphs} mappings={mappings} glyphOverrides={glyphOverrides} setGlyphOverrides={setGlyphOverrides} onNext={() => { setTab(3); window.scrollTo({ top:0, behavior:'smooth' }); }} />}
         {tab === 3 && <ExportPage glyphs={glyphs} mappings={mappings} fontName={fontName}
           setFontName={setFontName} fontNameInputRef={fontNameInputRef} glyphOverrides={glyphOverrides} />}
         {tab === 4 && <HistoryPage />}
