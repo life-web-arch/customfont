@@ -476,9 +476,9 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
               el.style.height = el.scrollHeight + 'px';
             }}
             style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%',
-              minHeight: Math.max(140, previewSize * 1.45 * 3 + Math.max(14, previewSize * 0.3) + 14),
+              minHeight: Math.max(160, previewSize * 1.45 * 3 + Math.max(16, previewSize * 0.85) + Math.max(14, previewSize * 0.25) + 4),
               background:'#fff', color:'#111', border:'1px solid var(--border)',
-              borderRadius:8, paddingTop: Math.max(14, previewSize * 0.3), paddingBottom:14, paddingLeft:14, paddingRight:14, resize:'none', overflow:'hidden',
+              borderRadius:8, paddingTop: Math.max(16, previewSize * 0.85), paddingBottom: Math.max(14, previewSize * 0.25), paddingLeft:14, paddingRight:14, resize:'none', overflow:'hidden',
               boxSizing:'border-box' }} />
           <p style={{ marginTop:6, color:'var(--muted)', fontSize:'0.75rem' }}>Characters not in your font fall back to system serif.</p>
         </div>
