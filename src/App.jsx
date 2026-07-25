@@ -144,8 +144,8 @@ export default function App() {
   }
 
   // Called by UploadPage after segmentation — skip crop review, go straight to mapping
-  const handleGlyphs = React.useCallback((g, dataUrl, chars=[], mode='fresh') => {
-    setSourceUrl(dataUrl);
+  const handleGlyphs = React.useCallback((g, dataUrl, chars=[], mode='fresh', srcUrl=null) => {
+    setSourceUrl(srcUrl ?? dataUrl);
     setPreview(dataUrl);
     if (mode === 'append') {
       setGlyphs(prev => {

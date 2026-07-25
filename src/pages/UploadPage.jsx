@@ -58,7 +58,8 @@ export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStar
       canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(bmp, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);  // preview only
+      const sourceUrl = canvas.toDataURL('image/png');       // lossless for re-cropping
       setPreview(dataUrl);
       setLoadPhase('detecting');
       setStatus('Detecting glyphs…');
@@ -72,7 +73,7 @@ export default function UploadPage({ onGlyphs, initialPreview, hasGlyphs, onStar
       }
       setStatus(`Found ${result.length} glyph${result.length !== 1 ? 's' : ''} — ${mode==='append'?'added to existing glyphs':'proceed to Map Glyphs'}`);
       const chars = [...charSeq.trim()].filter((c,i,a)=>a.indexOf(c)===i);
-      onGlyphs(result, dataUrl, autoAssign ? chars : [], mode);
+      onGlyphs(result, dataUrl, autoAssign ? chars : [], mode, sourceUrl);
     } catch (e) { setStatus('Error: ' + e.message); }
     setBusy(false); setLoadPhase('');
   }, [delta, onGlyphs, charSeq, autoAssign]);
