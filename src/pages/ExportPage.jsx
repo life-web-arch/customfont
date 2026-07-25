@@ -19,6 +19,13 @@ const IcoChevron  = ({ open }) => <svg width="13" height="13" viewBox="0 0 24 24
 
 const PAD = 10;
 const LS_KEY = 'cfs_font_history';
+const LS_PREFS = 'cfs_export_prefs';
+function loadPrefs() {
+  try { const r=localStorage.getItem(LS_PREFS); return r?JSON.parse(r):{}; } catch { return {}; }
+}
+function savePrefs(p) {
+  try { localStorage.setItem(LS_PREFS, JSON.stringify(p)); } catch(e) {}
+}
 
 async function traceImageData(imageData) {
   const svg = await potrace(imageData, { turdsize:6, alphamax:1.05, opticurve:1, opttolerance:0.2, extractcolors:false });
@@ -78,17 +85,18 @@ const VARIANTS = [
 // FORMATS removed — TTF only
 
 export default function ExportPage({ glyphs, mappings, fontName, setFontName, fontNameInputRef }) {
+  const _p = loadPrefs();
   const [busy, setBusy]                     = useState(false);
   const [status, setStatus]                 = useState('');
   const [results, setResults]               = useState({});
-  const [selectedVariants, setSelectedVariants] = useState(['normal']);
+  const [selectedVariants, setSelectedVariants] = useState(_p.selectedVariants || ['normal']);
   // Formats: TTF only (WOFF2 WASM hangs on mobile; TTF works everywhere)
-  const [previewText, setPreviewText]       = useState('Hello World\nThe quick brown fox\n0123456789');
-  const [previewSize, setPreviewSize]       = useState(48);
-  const [previewVariant, setPreviewVariant]  = useState('normal');
-  const [wordSpace, setWordSpace]           = useState(300);
-  const [lsb, setLsb]                       = useState(50);
-  const [rsb, setRsb]                       = useState(50);
+  const [previewText, setPreviewText]       = useState(_p.previewText || 'Hello World\nThe quick brown fox\n0123456789');
+  const [previewSize, setPreviewSize]       = useState(_p.previewSize || 48);
+  const [previewVariant, setPreviewVariant]  = useState(_p.previewVariant || 'normal');
+  const [wordSpace, setWordSpace]           = useState(_p.wordSpace || 300);
+  const [lsb, setLsb]                       = useState(_p.lsb ?? 50);
+  const [rsb, setRsb]                       = useState(_p.rsb ?? 50);
   // history state moved to HistoryPage
   // showHistory removed — History is now its own tab
   const [importedFamily, setImportedFamily] = useState(null);
@@ -107,6 +115,34 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
   const previewRef      = useRef(null);
   const lastSliderVals  = useRef({ wordSpace, lsb, rsb });
   const mappedEntries = Object.entries(mappings);
+
+  // Restore generated font from latest history entry on mount
+  useEffect(() => {
+    const history = loadHistory();
+    if (!history.length) return;
+    const last = history[history.length - 1];
+    if (!last.variants) return;
+    (async () => {
+      try {
+        const out = {};
+        for (const [vId, files] of Object.entries(last.variants)) {
+          if (!files.ttf) continue;
+          const bytes = b64ToUint8(files.ttf);
+          const v = VARIANTS.find(x => x.id === vId);
+          if (!v) continue;
+          const fName = `cfprev-${last.name}-${vId}-${++fontSeqRef.current}`;
+          await installFont(bytes, fName, { weight: v.weight, style: v.style });
+          fontFaceRef.current[vId] = fName;
+          out[vId] = { ttf: bytes };
+        }
+        if (Object.keys(out).length) {
+          setResults(out);
+          setPreviewKey(k => k + 1);
+          setStatus('done: Restored from last session.');
+        }
+      } catch(e) { console.warn('Restore failed:', e); }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function buildVariant(variant) {
     await initPotrace();
@@ -283,6 +319,11 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
     }, 0);
     return () => clearTimeout(debounceRef.current);
   }, [wordSpace, lsb, rsb]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist prefs on every relevant state change
+  useEffect(() => {
+    savePrefs({ selectedVariants, previewText, previewSize, previewVariant, wordSpace, lsb, rsb });
+  }, [selectedVariants, previewText, previewSize, previewVariant, wordSpace, lsb, rsb]);
 
   const sliders = [
     { label:'Word space (px)', val:wordSpace, set:setWordSpace, min:100, max:600 },
