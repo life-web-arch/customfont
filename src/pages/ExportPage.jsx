@@ -484,9 +484,9 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
               el.style.height = el.scrollHeight + 'px';
             }}
             style={{ fontFamily:generatedFamily, fontSize:previewSize, lineHeight:1.45, width:'100%',
-              minHeight: Math.max(140, previewSize * 1.45 * 3 + 28),
+              minHeight: Math.max(140, previewSize * 1.45 * 3 + Math.max(14, previewSize * 0.3) + 14),
               background:'#fff', color:'#111', border:'1px solid var(--border)',
-              borderRadius:8, padding:14, resize:'none', overflow:'hidden',
+              borderRadius:8, paddingTop: Math.max(14, previewSize * 0.3), paddingBottom:14, paddingLeft:14, paddingRight:14, resize:'none', overflow:'hidden',
               boxSizing:'border-box' }} />
           <p style={{ marginTop:6, color:'var(--muted)', fontSize:'0.75rem' }}>Characters not in your font fall back to system serif.</p>
         </div>
@@ -608,7 +608,7 @@ export default function ExportPage({ glyphs, mappings, fontName, setFontName, fo
         {importStatus && <p style={{ marginTop:10, fontSize:'0.85rem', color:importStatus.startsWith('ok')?'var(--success)':importStatus.startsWith('err')?'var(--danger)':'var(--muted)' }}>{importStatus}</p>}
         {importedFamily && (
           <textarea defaultValue="Type here to preview the imported font…"
-            style={{ marginTop:14, fontFamily:`${importedFamily}, serif`, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:100, background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, padding:12, resize:'vertical' }} />
+            style={{ marginTop:14, fontFamily:`${importedFamily}, serif`, fontSize:previewSize, lineHeight:1.45, width:'100%', minHeight:100, background:'#fff', color:'#111', border:'1px solid var(--border)', borderRadius:8, paddingTop: Math.max(12, previewSize * 0.3), paddingBottom:12, paddingLeft:12, paddingRight:12, resize:'vertical' }} />
         )}
       </div>
     </div>
